@@ -1,0 +1,103 @@
+{
+  "project": "workato-customerapi",
+  "folder_id": "Rjo4NTYzMTMw",
+  "components": [
+    {
+      "flow": "MIG_MS_UpdateCustomer_Process",
+      "component": "MIG_MS_UpdateCustomer_Process_WSSOperation",
+      "file": "active-development\\connector-action\\MIG_MS_UpdateCustomer_Process_WSSOperation.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_UpdateCustomer_Process",
+      "component": "MIG_workato_customerapi_DB_Connection",
+      "file": "active-development\\connector-settings\\MIG_workato_customerapi_DB_Connection.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_UpdateCustomer_Process",
+      "component": "MIG_MS_UpdateCustomer_Process_Update_rows_Operation",
+      "file": "active-development\\connector-action\\MIG_MS_UpdateCustomer_Process_Update_rows_Operation.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_UpdateCustomer_Process",
+      "component": "MIG_MS_UpdateCustomer_Process",
+      "file": "active-development\\process\\MIG_MS_UpdateCustomer_Process.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "component": "MIG_MS_GetCustomers_Process_WSSOperation",
+      "file": "active-development\\connector-action\\MIG_MS_GetCustomers_Process_WSSOperation.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "component": "MIG_workato_customerapi_DB_Connection",
+      "file": "active-development\\connector-settings\\MIG_workato_customerapi_DB_Connection.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "component": "MIG_MS_GetCustomers_Process_Select_rows_Operation",
+      "file": "active-development\\connector-action\\MIG_MS_GetCustomers_Process_Select_rows_Operation.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "component": "MIG_MS_GetCustomers_Process",
+      "file": "active-development\\process\\MIG_MS_GetCustomers_Process.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "component": "MIG_MS_GetCustomerById_Process_WSSOperation",
+      "file": "active-development\\connector-action\\MIG_MS_GetCustomerById_Process_WSSOperation.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "component": "MIG_workato_customerapi_DB_Connection",
+      "file": "active-development\\connector-settings\\MIG_workato_customerapi_DB_Connection.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "component": "MIG_MS_GetCustomerById_Process_Select_rows_Operation",
+      "file": "active-development\\connector-action\\MIG_MS_GetCustomerById_Process_Select_rows_Operation.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "component": "MIG_MS_GetCustomerById_Process",
+      "file": "active-development\\process\\MIG_MS_GetCustomerById_Process.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_CreateCustomer_Process",
+      "component": "MIG_MS_CreateCustomer_Process_WSSOperation",
+      "file": "active-development\\connector-action\\MIG_MS_CreateCustomer_Process_WSSOperation.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_CreateCustomer_Process",
+      "component": "MIG_workato_customerapi_DB_Connection",
+      "file": "active-development\\connector-settings\\MIG_workato_customerapi_DB_Connection.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_CreateCustomer_Process",
+      "component": "MIG_MS_CreateCustomer_Process_Insert_row_Operation",
+      "file": "active-development\\connector-action\\MIG_MS_CreateCustomer_Process_Insert_row_Operation.xml",
+      "status": "pushed"
+    },
+    {
+      "flow": "MIG_MS_CreateCustomer_Process",
+      "component": "MIG_MS_CreateCustomer_Process",
+      "file": "active-development\\process\\MIG_MS_CreateCustomer_Process.xml",
+      "status": "pushed"
+    }
+  ],
+  "manual_review": []
+}

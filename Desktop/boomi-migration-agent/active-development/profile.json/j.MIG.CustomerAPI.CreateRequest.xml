@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bns:Component xmlns:bns="http://api.platform.boomi.com/"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               componentId="8899b481-2e02-4f58-a170-524500c1194e" name="j.MIG.CustomerAPI.CreateRequest" type="profile.json"
+               folderId="Rjo4NTYzMTMw">
+  <bns:encryptedValues/>
+  <bns:description>built with boomi-companion v1.0.0</bns:description><bns:object>
+    <JSONProfile strict="false">
+      <DataElements>
+        <JSONRootValue dataType="character" isMappable="true" isNode="true" key="1" name="Root">
+          <DataFormat><ProfileCharacterFormat/></DataFormat>
+          <JSONObject isMappable="false" isNode="true" key="2" name="Object">
+            <JSONObjectEntry dataType="character" isMappable="true" isNode="true" key="3" name="firstName">
+              <DataFormat><ProfileCharacterFormat/></DataFormat>
+            </JSONObjectEntry>
+            <JSONObjectEntry dataType="character" isMappable="true" isNode="true" key="4" name="lastName">
+              <DataFormat><ProfileCharacterFormat/></DataFormat>
+            </JSONObjectEntry>
+            <JSONObjectEntry dataType="character" isMappable="true" isNode="true" key="5" name="email">
+              <DataFormat><ProfileCharacterFormat/></DataFormat>
+            </JSONObjectEntry>
+            <JSONObjectEntry dataType="character" isMappable="true" isNode="true" key="6" name="phone">
+              <DataFormat><ProfileCharacterFormat/></DataFormat>
+            </JSONObjectEntry>
+            <JSONObjectEntry dataType="character" isMappable="true" isNode="true" key="7" name="status">
+              <DataFormat><ProfileCharacterFormat/></DataFormat>
+            </JSONObjectEntry>
+          </JSONObject>
+          <Qualifiers><QualifierList/></Qualifiers>
+        </JSONRootValue>
+      </DataElements>
+      <tagLists/>
+    </JSONProfile>
+  </bns:object>
+</bns:Component>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bns:Component xmlns:bns="http://api.platform.boomi.com/"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               componentId="803b90c7-eb9b-45f7-9c63-145af4f820fe" name="MIG_MS_UpdateCustomer_WSSOperation"
+               type="connector-action" subType="wss" folderId="Rjo4NTYzMTMw">
+  <bns:encryptedValues/>
+  <bns:description>built with boomi-companion v1.0.0</bns:description><bns:object>
+    <Operation>
+      <Archiving directory="" enabled="false"/>
+      <Configuration>
+        <WebServicesServerListenAction
+          inputType="singlejson"
+          objectName="customer"
+          operationType="UPDATE"
+          outputType="singlejson"
+          requestProfile="8899b481-2e02-4f58-a170-524500c1194e"
+          responseProfile="45112fb2-1bba-4b31-b8b9-43f4ef5027b3"
+          responseContentType="application/json"/>
+      </Configuration>
+      <Tracking><TrackedFields/></Tracking>
+      <Caching/>
+    </Operation>
+  </bns:object>
+</bns:Component>

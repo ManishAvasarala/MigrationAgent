@@ -1,0 +1,401 @@
+{
+  "schema_version": "1.0",
+  "source_system": "mulesoft",
+  "source_version": "4.x",
+  "analyzed_at": "2026-05-20T16:37:30Z",
+  "project_name": "customer-api",
+  "source_files_analyzed": [
+    "samples\\mulesoft\\customer-api\\customer-api.xml"
+  ],
+  "summary": {
+    "total_flows": 4,
+    "primary_flows": 4,
+    "sub_flows": 0,
+    "total_connections": 2,
+    "gaps_found": 0,
+    "overall_complexity": "medium"
+  },
+  "connections": {
+    "HTTP_Listener_Config": {
+      "type": "http_listener",
+      "host": "0.0.0.0",
+      "port": "8081",
+      "boomi_equivalent": "wss_listener",
+      "notes": "Run boomi-shared-server-info.sh to determine API tier before building"
+    },
+    "PostgreSQL_Config": {
+      "type": "db",
+      "driver": "postgresql",
+      "host": "",
+      "port": "",
+      "database": "",
+      "jdbc_url": "jdbc:postgresql://db.internal:5432/crm",
+      "uses_env_vars": false,
+      "boomi_equivalent": "databasev2_connection",
+      "boomi_driver": "Postgresql",
+      "notes": "Driver: postgresql"
+    }
+  },
+  "integrations": [
+    {
+      "name": "get-customers-flow",
+      "source_name": "get-customers-flow",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "http:listener",
+        "type": "http_listener",
+        "label": "http:listener",
+        "config_ref": "HTTP_Listener_Config",
+        "requires_review": false,
+        "boomi_step": "Start_WSS_Listen",
+        "boomi_component": "wss_operation",
+        "complexity": "low",
+        "path": "/api/customers",
+        "allowed_methods": "GET"
+      },
+      "steps": [
+        {
+          "source_tag": "core:set-variable",
+          "type": "set_variable",
+          "label": "core:set-variable",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Set_Properties",
+          "boomi_component": "set_properties_step",
+          "complexity": "low",
+          "variable_name": "statusFilter",
+          "value": "#[attributes.queryParams.status default 'ACTIVE']",
+          "sequence": 1
+        },
+        {
+          "source_tag": "db:select",
+          "type": "db_select",
+          "label": "db:select",
+          "config_ref": "PostgreSQL_Config",
+          "requires_review": false,
+          "boomi_step": "DatabaseV2_GET",
+          "boomi_component": "databasev2_connection + databasev2_operation",
+          "complexity": "low",
+          "sql": "SELECT id, first_name, last_name, email, status, created_at FROM customers WHERE status = :status ORDER BY last_name",
+          "has_parameters": true,
+          "sequence": 2
+        },
+        {
+          "source_tag": "ee:transform",
+          "type": "transform",
+          "label": "ee:transform",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Map",
+          "boomi_component": "transform.map + profiles",
+          "complexity": "medium",
+          "has_dataweave": true,
+          "output_format": "application/json",
+          "sets_variables": true,
+          "sequence": 3
+        },
+        {
+          "source_tag": "core:logger",
+          "type": "logger",
+          "label": "core:logger",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Notify",
+          "boomi_component": "notify_step",
+          "complexity": "low",
+          "level": "INFO",
+          "message": "Retrieved #[sizeOf(payload)] customers",
+          "sequence": 4
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": true,
+        "strategies": [
+          {
+            "error_type": "DB:CONNECTIVITY",
+            "strategy": "propagate",
+            "boomi_equivalent": "try_catch_rethrow"
+          },
+          {
+            "error_type": "ANY",
+            "strategy": "propagate",
+            "boomi_equivalent": "try_catch_rethrow"
+          }
+        ]
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_get_customers_flow",
+        "pattern": "request_reply_api",
+        "trigger_component": "Start_WSS_Listen",
+        "step_components": [
+          "Set_Properties",
+          "DatabaseV2_GET",
+          "Map",
+          "Notify"
+        ],
+        "connections_needed": [
+          "databasev2_connection"
+        ],
+        "complexity": "medium",
+        "manual_review_required": false
+      }
+    },
+    {
+      "name": "get-customer-by-id-flow",
+      "source_name": "get-customer-by-id-flow",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "http:listener",
+        "type": "http_listener",
+        "label": "http:listener",
+        "config_ref": "HTTP_Listener_Config",
+        "requires_review": false,
+        "boomi_step": "Start_WSS_Listen",
+        "boomi_component": "wss_operation",
+        "complexity": "low",
+        "path": "/api/customers/{id}",
+        "allowed_methods": "GET"
+      },
+      "steps": [
+        {
+          "source_tag": "db:select",
+          "type": "db_select",
+          "label": "db:select",
+          "config_ref": "PostgreSQL_Config",
+          "requires_review": false,
+          "boomi_step": "DatabaseV2_GET",
+          "boomi_component": "databasev2_connection + databasev2_operation",
+          "complexity": "low",
+          "sql": "SELECT id, first_name, last_name, email, phone, status, created_at, updated_at FROM customers WHERE id = :id",
+          "has_parameters": true,
+          "sequence": 1
+        },
+        {
+          "source_tag": "core:choice",
+          "type": "choice_router",
+          "label": "core:choice",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Decision",
+          "boomi_component": "decision_step",
+          "complexity": "low",
+          "branch_count": 2,
+          "sequence": 2
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": true,
+        "strategies": [
+          {
+            "error_type": "ANY",
+            "strategy": "propagate",
+            "boomi_equivalent": "try_catch_rethrow"
+          }
+        ]
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_get_customer_by_id_flow",
+        "pattern": "request_reply_api",
+        "trigger_component": "Start_WSS_Listen",
+        "step_components": [
+          "DatabaseV2_GET",
+          "Decision"
+        ],
+        "connections_needed": [
+          "databasev2_connection"
+        ],
+        "complexity": "low",
+        "manual_review_required": false
+      }
+    },
+    {
+      "name": "create-customer-flow",
+      "source_name": "create-customer-flow",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "http:listener",
+        "type": "http_listener",
+        "label": "http:listener",
+        "config_ref": "HTTP_Listener_Config",
+        "requires_review": false,
+        "boomi_step": "Start_WSS_Listen",
+        "boomi_component": "wss_operation",
+        "complexity": "low",
+        "path": "/api/customers",
+        "allowed_methods": "POST"
+      },
+      "steps": [
+        {
+          "source_tag": "ee:transform",
+          "type": "transform",
+          "label": "ee:transform",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Map",
+          "boomi_component": "transform.map + profiles",
+          "complexity": "medium",
+          "has_dataweave": true,
+          "output_format": "application/java",
+          "sets_variables": false,
+          "sequence": 1
+        },
+        {
+          "source_tag": "db:insert",
+          "type": "db_insert",
+          "label": "db:insert",
+          "config_ref": "PostgreSQL_Config",
+          "requires_review": false,
+          "boomi_step": "DatabaseV2_INSERT",
+          "boomi_component": "databasev2_connection + databasev2_operation",
+          "complexity": "low",
+          "sql": "INSERT INTO customers (first_name, last_name, email, phone, status) VALUES (:first_name, :last_name, :email, :phone, :status)",
+          "has_parameters": true,
+          "auto_generate_keys": true,
+          "sequence": 2
+        },
+        {
+          "source_tag": "core:set-variable",
+          "type": "set_variable",
+          "label": "core:set-variable",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Set_Properties",
+          "boomi_component": "set_properties_step",
+          "complexity": "low",
+          "variable_name": "newId",
+          "value": "#[payload.generatedKeys[0].id]",
+          "sequence": 3
+        },
+        {
+          "source_tag": "ee:transform",
+          "type": "transform",
+          "label": "ee:transform",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Map",
+          "boomi_component": "transform.map + profiles",
+          "complexity": "medium",
+          "has_dataweave": true,
+          "output_format": "%dw 2.0  application/json --- {id: vars.newId, status: \"created\"}",
+          "sets_variables": false,
+          "sequence": 4
+        },
+        {
+          "source_tag": "core:logger",
+          "type": "logger",
+          "label": "core:logger",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Notify",
+          "boomi_component": "notify_step",
+          "complexity": "low",
+          "level": "INFO",
+          "message": "Created customer ID: #[vars.newId]",
+          "sequence": 5
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": true,
+        "strategies": [
+          {
+            "error_type": "DB:CONSTRAINT_VIOLATION",
+            "strategy": "propagate",
+            "boomi_equivalent": "try_catch_rethrow"
+          },
+          {
+            "error_type": "ANY",
+            "strategy": "propagate",
+            "boomi_equivalent": "try_catch_rethrow"
+          }
+        ]
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_create_customer_flow",
+        "pattern": "request_reply_api",
+        "trigger_component": "Start_WSS_Listen",
+        "step_components": [
+          "Map",
+          "DatabaseV2_INSERT",
+          "Set_Properties",
+          "Map",
+          "Notify"
+        ],
+        "connections_needed": [
+          "databasev2_connection"
+        ],
+        "complexity": "medium",
+        "manual_review_required": false
+      }
+    },
+    {
+      "name": "update-customer-flow",
+      "source_name": "update-customer-flow",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "http:listener",
+        "type": "http_listener",
+        "label": "http:listener",
+        "config_ref": "HTTP_Listener_Config",
+        "requires_review": false,
+        "boomi_step": "Start_WSS_Listen",
+        "boomi_component": "wss_operation",
+        "complexity": "low",
+        "path": "/api/customers/{id}",
+        "allowed_methods": "PUT"
+      },
+      "steps": [
+        {
+          "source_tag": "db:update",
+          "type": "db_update",
+          "label": "db:update",
+          "config_ref": "PostgreSQL_Config",
+          "requires_review": false,
+          "boomi_step": "DatabaseV2_UPDATE",
+          "boomi_component": "databasev2_connection + databasev2_operation",
+          "complexity": "low",
+          "sql": "UPDATE customers SET first_name = :first_name, last_name = :last_name, email = :email, phone = :phone, status = :status, updated_at = NOW() WHERE id = :id",
+          "has_parameters": true,
+          "sequence": 1
+        },
+        {
+          "source_tag": "core:choice",
+          "type": "choice_router",
+          "label": "core:choice",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Decision",
+          "boomi_component": "decision_step",
+          "complexity": "low",
+          "branch_count": 2,
+          "sequence": 2
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": true,
+        "strategies": [
+          {
+            "error_type": "ANY",
+            "strategy": "propagate",
+            "boomi_equivalent": "try_catch_rethrow"
+          }
+        ]
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_update_customer_flow",
+        "pattern": "request_reply_api",
+        "trigger_component": "Start_WSS_Listen",
+        "step_components": [
+          "DatabaseV2_UPDATE",
+          "Decision"
+        ],
+        "connections_needed": [
+          "databasev2_connection"
+        ],
+        "complexity": "low",
+        "manual_review_required": false
+      }
+    }
+  ],
+  "gaps": [],
+  "migration_notes": ""
+}

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bns:Component xmlns:bns="http://api.platform.boomi.com/"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               componentId="086aacf7-f2b9-4c18-ac98-2073d9ddb722" name="MIG_MS_GetCustomers_WSSOperation"
+               type="connector-action" subType="wss" folderId="Rjo4NTYzMTMw">
+  <bns:encryptedValues/>
+  <bns:description>built with boomi-companion v1.0.0</bns:description><bns:object>
+    <Operation>
+      <Archiving directory="" enabled="false"/>
+      <Configuration>
+        <WebServicesServerListenAction
+          inputType="none"
+          objectName="customers"
+          operationType="QUERY"
+          outputType="singledata"
+          responseContentType="application/json"/>
+      </Configuration>
+      <Tracking><TrackedFields/></Tracking>
+      <Caching/>
+    </Operation>
+  </bns:object>
+</bns:Component>

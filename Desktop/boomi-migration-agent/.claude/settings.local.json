@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl *)",
+      "Bash(python analyzers/analyze_mulesoft.py samples/mulesoft/customer-api/ --output migration-specs/customer-api.json)",
+      "Bash(python analyzers/analyze_mulesoft.py samples/mulesoft/file-processor/ --output migration-specs/file-processor.json)",
+      "Bash(python analyzers/analyze_mulesoft.py samples/mulesoft/crm-sync/ --output migration-specs/crm-sync.json)",
+      "Bash(python -c \"import json; spec=json.load\\(open\\('migration-specs/customer-api.json'\\)\\); print\\(json.dumps\\(spec, indent=2\\)\\)\")",
+      "Bash(git add *)"
+    ]
+  }
+}

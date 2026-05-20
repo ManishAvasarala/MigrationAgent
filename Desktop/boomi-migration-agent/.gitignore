@@ -1,0 +1,23 @@
+# Credentials
+.env
+.env.local
+
+# Sync state
+.sync-state/
+
+# Migration specs (generated output — commit intentionally)
+# migration-specs/
+
+# Activity log
+.activity-log/
+
+# Logs
+hook-logs/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# OS
+.DS_Store

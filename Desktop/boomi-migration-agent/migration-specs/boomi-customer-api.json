@@ -1,0 +1,463 @@
+{
+  "schema_version": "1.0",
+  "source_system": "boomi",
+  "source_version": "boomi_integration_platform",
+  "analyzed_at": "2026-05-20T20:05:08.685773+00:00",
+  "project_name": "boomi-customer-api",
+  "source_files_analyzed": [
+    "active-development\\process\\MIG_MS_CreateCustomer_Process.xml",
+    "active-development\\process\\MIG_MS_GetCustomerById_Process.xml",
+    "active-development\\process\\MIG_MS_GetCustomers_Process.xml",
+    "active-development\\process\\MIG_MS_UpdateCustomer_Process.xml"
+  ],
+  "summary": {
+    "total_flows": 4,
+    "primary_flows": 4,
+    "sub_flows": 0,
+    "total_connections": 1,
+    "gaps_found": 3,
+    "overall_complexity": "high"
+  },
+  "connections": {
+    "MIG_MS_PostgreSQL_Connection": {
+      "id": "0815e48b-507d-46f2-b885-4ec8a8c42909",
+      "name": "MIG_MS_PostgreSQL_Connection",
+      "type": "unknown",
+      "driver": "",
+      "jdbc_url": "",
+      "host": "",
+      "port": "",
+      "database": "",
+      "boomi_connector_type": "officialboomi-X3979C-dbv2da-prod",
+      "requires_review": false
+    }
+  },
+  "integrations": [
+    {
+      "name": "MIG_MS_CreateCustomer_Process",
+      "source_name": "MIG_MS_CreateCustomer_Process",
+      "component_id": "85a3c272-ec0a-4876-bc26-5cd211fff73d",
+      "description": "built with boomi-companion v1.0.0",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "wss:listen",
+        "type": "http_listener",
+        "label": "WSS Listen POST /ws/simple/createCustomer",
+        "config_ref": null,
+        "requires_review": false,
+        "boomi_step": "Start_WSS_Listen",
+        "boomi_component": "wss_operation",
+        "complexity": "low",
+        "http_method": "POST",
+        "boomi_path": "/ws/simple/createCustomer",
+        "path": "/customers",
+        "path_params": [],
+        "allowed_methods": "POST",
+        "has_request_body": true,
+        "boomi_operation_type": "CREATE",
+        "boomi_object_name": "customer",
+        "boomi_input_type": "singlejson"
+      },
+      "steps": [
+        {
+          "source_tag": "ee:transform",
+          "type": "transform",
+          "label": "Map Request to DB Input",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Map",
+          "boomi_component": "transform.map + profiles",
+          "complexity": "medium",
+          "has_dataweave": false,
+          "map_id": "2475185d-3a00-4b6d-b5f9-f538801a0149",
+          "sequence": 1
+        },
+        {
+          "source_tag": "db:operation",
+          "type": "db_insert",
+          "label": "DB: Insert Customer",
+          "config_ref": "0815e48b-507d-46f2-b885-4ec8a8c42909",
+          "requires_review": false,
+          "boomi_step": "DatabaseV2_CREATE",
+          "boomi_component": "databasev2_connection + databasev2_operation",
+          "complexity": "low",
+          "sql": "INSERT INTO customers (first_name, last_name, email, phone, status) VALUES ($first_name, $last_name, $email, $phone, $status)",
+          "table": "customers",
+          "params": [
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "status"
+          ],
+          "has_parameters": true,
+          "operation_id": "14744191-9b04-4638-b960-c566e4975290",
+          "connection_id": "0815e48b-507d-46f2-b885-4ec8a8c42909",
+          "sequence": 2,
+          "sql_operation": "INSERT"
+        },
+        {
+          "source_tag": "message:step",
+          "type": "set_payload",
+          "label": "Success Response",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Message",
+          "boomi_component": "message_step",
+          "complexity": "low",
+          "static_content": "{\"status\": \"created\"}",
+          "sequence": 3
+        }
+      ],
+      "connections_used": [
+        "0815e48b-507d-46f2-b885-4ec8a8c42909"
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": [],
+        "note": "Boomi error handling (Try/Catch shapes) not yet captured \u2014 review process for exception paths"
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_CreateCustomer_Process",
+        "pattern": "request_reply_api"
+      }
+    },
+    {
+      "name": "MIG_MS_GetCustomerById_Process",
+      "source_name": "MIG_MS_GetCustomerById_Process",
+      "component_id": "cfa487e2-4546-412c-806a-f1d5776b8393",
+      "description": "built with boomi-companion v1.0.0",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "wss:listen",
+        "type": "http_listener",
+        "label": "WSS Listen GET /ws/simple/queryCustomerById",
+        "config_ref": null,
+        "requires_review": false,
+        "boomi_step": "Start_WSS_Listen",
+        "boomi_component": "wss_operation",
+        "complexity": "low",
+        "http_method": "GET",
+        "boomi_path": "/ws/simple/queryCustomerById",
+        "path": "/customers/{id}",
+        "path_params": [
+          "id"
+        ],
+        "allowed_methods": "GET",
+        "has_request_body": false,
+        "boomi_operation_type": "QUERY",
+        "boomi_object_name": "customerById",
+        "boomi_input_type": "none"
+      },
+      "steps": [
+        {
+          "source_tag": "message:step",
+          "type": "set_payload",
+          "label": "Build id param",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Message",
+          "boomi_component": "message_step",
+          "complexity": "low",
+          "static_content": "{\"id\": '{1}'}",
+          "sequence": 1
+        },
+        {
+          "source_tag": "db:operation",
+          "type": "db_select",
+          "label": "DB: Get Customer By ID",
+          "config_ref": "0815e48b-507d-46f2-b885-4ec8a8c42909",
+          "requires_review": false,
+          "boomi_step": "DatabaseV2_GET",
+          "boomi_component": "databasev2_connection + databasev2_operation",
+          "complexity": "low",
+          "sql": "SELECT id, first_name, last_name, email, phone, status, created_at, updated_at FROM customers WHERE id = $id",
+          "table": "customers",
+          "params": [
+            "id"
+          ],
+          "has_parameters": true,
+          "operation_id": "9351f231-b90b-4eac-a5ad-7ebfa22fd04f",
+          "connection_id": "0815e48b-507d-46f2-b885-4ec8a8c42909",
+          "sequence": 2,
+          "sql_operation": "SELECT"
+        },
+        {
+          "source_tag": "dataprocess:groovy",
+          "type": "custom_script",
+          "label": "Handle not found",
+          "config_ref": null,
+          "requires_review": true,
+          "boomi_step": "Data_Process_Groovy",
+          "boomi_component": "data_process_step",
+          "complexity": "high",
+          "language": "groovy",
+          "purpose": "not_found_handler",
+          "script": "import java.util.Properties;\nimport java.io.InputStream;\nimport java.io.ByteArrayInputStream;\n\nint count = dataContext.getDataCount();\nif (count == 0) {\n    String notFound = \"{\\\"error\\\": \\\"Customer not found\\\", \\\"code\\\": 404}\";\n    dataContext.storeStream(new ByteArrayInputStream(notFound.getBytes(\"UTF-8\")), new Properties());\n} else {\n    for (int i = 0; i < count; i++) {\n        InputStream is = dataContext.getStream(i);\n        Properties props = dataContext.getProperties(i);\n        dataContext.storeStream(is, props);\n    }\n}",
+          "note": "Groovy script requires manual mapping to target platform equivalent",
+          "sequence": 3
+        },
+        {
+          "source_tag": "ee:transform",
+          "type": "transform",
+          "label": "Map DB Row to API Response",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Map",
+          "boomi_component": "transform.map + profiles",
+          "complexity": "medium",
+          "has_dataweave": false,
+          "map_id": "ea8c30bb-aa6c-4d57-bc44-38c021317cb5",
+          "sequence": 4
+        }
+      ],
+      "connections_used": [
+        "0815e48b-507d-46f2-b885-4ec8a8c42909"
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": [],
+        "note": "Boomi error handling (Try/Catch shapes) not yet captured \u2014 review process for exception paths"
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_GetCustomerById_Process",
+        "pattern": "request_reply_api"
+      }
+    },
+    {
+      "name": "MIG_MS_GetCustomers_Process",
+      "source_name": "MIG_MS_GetCustomers_Process",
+      "component_id": "711856bf-8255-4aa8-a537-0fdc50d88849",
+      "description": "built with boomi-companion v1.0.0",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "wss:listen",
+        "type": "http_listener",
+        "label": "WSS Listen GET /ws/simple/queryCustomers",
+        "config_ref": null,
+        "requires_review": false,
+        "boomi_step": "Start_WSS_Listen",
+        "boomi_component": "wss_operation",
+        "complexity": "low",
+        "http_method": "GET",
+        "boomi_path": "/ws/simple/queryCustomers",
+        "path": "/customers",
+        "path_params": [],
+        "allowed_methods": "GET",
+        "has_request_body": false,
+        "boomi_operation_type": "QUERY",
+        "boomi_object_name": "customers",
+        "boomi_input_type": "none"
+      },
+      "steps": [
+        {
+          "source_tag": "message:step",
+          "type": "set_payload",
+          "label": "Build status param",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Message",
+          "boomi_component": "message_step",
+          "complexity": "low",
+          "static_content": "{\"status\": \"'{1}'\"}",
+          "sequence": 1
+        },
+        {
+          "source_tag": "db:operation",
+          "type": "db_select",
+          "label": "DB: Get Customers",
+          "config_ref": "0815e48b-507d-46f2-b885-4ec8a8c42909",
+          "requires_review": false,
+          "boomi_step": "DatabaseV2_GET",
+          "boomi_component": "databasev2_connection + databasev2_operation",
+          "complexity": "low",
+          "sql": "SELECT id, first_name, last_name, email, status, created_at FROM customers WHERE status = $status ORDER BY last_name",
+          "table": "customers",
+          "params": [
+            "status"
+          ],
+          "has_parameters": true,
+          "operation_id": "156b7f63-b1c0-4b40-8628-98ffdba73af0",
+          "connection_id": "0815e48b-507d-46f2-b885-4ec8a8c42909",
+          "sequence": 2,
+          "sql_operation": "SELECT"
+        },
+        {
+          "source_tag": "ee:transform",
+          "type": "transform",
+          "label": "Map DB Row to API Response",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Map",
+          "boomi_component": "transform.map + profiles",
+          "complexity": "medium",
+          "has_dataweave": false,
+          "map_id": "ea8c30bb-aa6c-4d57-bc44-38c021317cb5",
+          "sequence": 3
+        },
+        {
+          "source_tag": "dataprocess:groovy",
+          "type": "custom_script",
+          "label": "Combine into JSON array",
+          "config_ref": null,
+          "requires_review": true,
+          "boomi_step": "Data_Process_Groovy",
+          "boomi_component": "data_process_step",
+          "complexity": "high",
+          "language": "groovy",
+          "purpose": "array_combiner",
+          "script": "import java.util.Properties;\nimport java.io.InputStream;\nimport java.io.ByteArrayInputStream;\n\nStringBuilder sb = new StringBuilder(\"[\");\nint count = dataContext.getDataCount();\nfor (int i = 0; i < count; i++) {\n    InputStream is = dataContext.getStream(i);\n    Properties props = dataContext.getProperties(i);\n    String doc = new String(is.bytes, \"UTF-8\");\n    if (i > 0) sb.append(\",\");\n    sb.append(doc.trim());\n}\nsb.append(\"]\");\ndataContext.storeStream(new ByteArrayInputStream(sb.toString().getBytes(\"UTF-8\")), new Properties());",
+          "note": "Groovy script requires manual mapping to target platform equivalent",
+          "sequence": 4
+        }
+      ],
+      "connections_used": [
+        "0815e48b-507d-46f2-b885-4ec8a8c42909"
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": [],
+        "note": "Boomi error handling (Try/Catch shapes) not yet captured \u2014 review process for exception paths"
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_GetCustomers_Process",
+        "pattern": "request_reply_api"
+      }
+    },
+    {
+      "name": "MIG_MS_UpdateCustomer_Process",
+      "source_name": "MIG_MS_UpdateCustomer_Process",
+      "component_id": "d6680f28-69bc-4f26-8027-add747df63f6",
+      "description": "built with boomi-companion v1.0.0",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "wss:listen",
+        "type": "http_listener",
+        "label": "WSS Listen PUT /ws/simple/updateCustomer",
+        "config_ref": null,
+        "requires_review": false,
+        "boomi_step": "Start_WSS_Listen",
+        "boomi_component": "wss_operation",
+        "complexity": "low",
+        "http_method": "PUT",
+        "boomi_path": "/ws/simple/updateCustomer",
+        "path": "/customers",
+        "path_params": [],
+        "allowed_methods": "PUT",
+        "has_request_body": true,
+        "boomi_operation_type": "UPDATE",
+        "boomi_object_name": "customer",
+        "boomi_input_type": "singlejson"
+      },
+      "steps": [
+        {
+          "source_tag": "core:set-variable",
+          "type": "set_variable",
+          "label": "Capture customer ID",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Set_Properties",
+          "boomi_component": "set_properties_step",
+          "complexity": "low",
+          "properties": [
+            {
+              "name": "Dynamic Document Property - DDP_CUSTOMER_ID",
+              "property_id": "dynamicdocument.DDP_CUSTOMER_ID",
+              "source_type": "process",
+              "source_value": "query_id"
+            }
+          ],
+          "sequence": 1
+        },
+        {
+          "source_tag": "dataprocess:groovy",
+          "type": "custom_script",
+          "label": "Build UpdateInput JSON",
+          "config_ref": null,
+          "requires_review": true,
+          "boomi_step": "Data_Process_Groovy",
+          "boomi_component": "data_process_step",
+          "complexity": "high",
+          "language": "groovy",
+          "purpose": "array_combiner",
+          "script": "import java.util.Properties;\nimport java.io.InputStream;\nimport java.io.ByteArrayInputStream;\nimport groovy.json.JsonSlurper;\n\nfor (int i = 0; i < dataContext.getDataCount(); i++) {\n    InputStream is = dataContext.getStream(i);\n    Properties props = dataContext.getProperties(i);\n\n    String body = new String(is.bytes, \"UTF-8\");\n    String customerId = props.getProperty(\"document.dynamic.userdefined.DDP_CUSTOMER_ID\", \"0\");\n\n    def parsed = new JsonSlurper().parseText(body);\n\n    String result = \"{\" +\n        \"\\\"first_name\\\":\\\"\" + (parsed.firstName ?: \"\") + \"\\\",\" +\n        \"\\\"last_name\\\":\\\"\" + (parsed.lastName ?: \"\") + \"\\\",\" +\n        \"\\\"email\\\":\\\"\" + (parsed.email ?: \"\") + \"\\\",\" +\n        \"\\\"phone\\\":\\\"\" + (parsed.phone ?: \"\") + \"\\\",\" +\n        \"\\\"status\\\":\\\"\" + (parsed.status ?: \"ACTIVE\") + \"\\\",\" +\n        \"\\\"id\\\":\" + customerId +\n        \"}\";\n\n    dataContext.storeStream(new ByteArrayInputStream(result.getBytes(\"UTF-8\")), props);\n}",
+          "note": "Groovy script requires manual mapping to target platform equivalent",
+          "sequence": 2
+        },
+        {
+          "source_tag": "db:operation",
+          "type": "db_update",
+          "label": "DB: Update Customer",
+          "config_ref": "0815e48b-507d-46f2-b885-4ec8a8c42909",
+          "requires_review": false,
+          "boomi_step": "DatabaseV2_UPDATE",
+          "boomi_component": "databasev2_connection + databasev2_operation",
+          "complexity": "low",
+          "sql": "UPDATE customers SET first_name=$first_name, last_name=$last_name, email=$email, phone=$phone, status=$status, updated_at=NOW() WHERE id=$id",
+          "table": "customers",
+          "params": [
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "status",
+            "id"
+          ],
+          "has_parameters": true,
+          "operation_id": "01e7af71-1e19-4742-9895-5bd540285dbb",
+          "connection_id": "0815e48b-507d-46f2-b885-4ec8a8c42909",
+          "sequence": 3,
+          "sql_operation": "UPDATE"
+        },
+        {
+          "source_tag": "message:step",
+          "type": "set_payload",
+          "label": "Success Response",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Message",
+          "boomi_component": "message_step",
+          "complexity": "low",
+          "static_content": "{\"status\": \"updated\"}",
+          "sequence": 4
+        }
+      ],
+      "connections_used": [
+        "0815e48b-507d-46f2-b885-4ec8a8c42909"
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": [],
+        "note": "Boomi error handling (Try/Catch shapes) not yet captured \u2014 review process for exception paths"
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_UpdateCustomer_Process",
+        "pattern": "request_reply_api"
+      }
+    }
+  ],
+  "gaps": [
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "step_type": "custom_script",
+      "sequence": 3,
+      "label": "Handle not found",
+      "note": "Groovy script requires manual mapping to target platform equivalent"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "step_type": "custom_script",
+      "sequence": 4,
+      "label": "Combine into JSON array",
+      "note": "Groovy script requires manual mapping to target platform equivalent"
+    },
+    {
+      "flow": "MIG_MS_UpdateCustomer_Process",
+      "step_type": "custom_script",
+      "sequence": 2,
+      "label": "Build UpdateInput JSON",
+      "note": "Groovy script requires manual mapping to target platform equivalent"
+    }
+  ],
+  "migration_notes": ""
+}

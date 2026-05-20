@@ -1,0 +1,116 @@
+{
+  "project": "boomi-customer-api",
+  "folder_id": "Rjo4NTYzMTMw",
+  "components": [
+    {
+      "flow": "MIG_MS_CreateCustomer_Process",
+      "component": "MIG_MS_CreateCustomer_Process_WSSOperation",
+      "file": "active-development\\connector-action\\MIG_MS_CreateCustomer_Process_WSSOperation.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_CreateCustomer_Process",
+      "component": "MIG_boomi_customer_api_DB_Connection",
+      "file": "active-development\\connector-settings\\MIG_boomi_customer_api_DB_Connection.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_CreateCustomer_Process",
+      "component": "MIG_MS_CreateCustomer_Process_DB__Insert_Customer_Operation",
+      "file": "active-development\\connector-action\\MIG_MS_CreateCustomer_Process_DB__Insert_Customer_Operation.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_CreateCustomer_Process",
+      "component": "MIG_MS_CreateCustomer_Process",
+      "file": "active-development\\process\\MIG_MS_CreateCustomer_Process.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "component": "MIG_MS_GetCustomerById_Process_WSSOperation",
+      "file": "active-development\\connector-action\\MIG_MS_GetCustomerById_Process_WSSOperation.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "component": "MIG_boomi_customer_api_DB_Connection",
+      "file": "active-development\\connector-settings\\MIG_boomi_customer_api_DB_Connection.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "component": "MIG_MS_GetCustomerById_Process_DB__Get_Customer_By_ID_Operation",
+      "file": "active-development\\connector-action\\MIG_MS_GetCustomerById_Process_DB__Get_Customer_By_ID_Operation.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "component": "MIG_MS_GetCustomerById_Process",
+      "file": "active-development\\process\\MIG_MS_GetCustomerById_Process.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "component": "MIG_MS_GetCustomers_Process_WSSOperation",
+      "file": "active-development\\connector-action\\MIG_MS_GetCustomers_Process_WSSOperation.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "component": "MIG_boomi_customer_api_DB_Connection",
+      "file": "active-development\\connector-settings\\MIG_boomi_customer_api_DB_Connection.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "component": "MIG_MS_GetCustomers_Process_DB__Get_Customers_Operation",
+      "file": "active-development\\connector-action\\MIG_MS_GetCustomers_Process_DB__Get_Customers_Operation.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "component": "MIG_MS_GetCustomers_Process",
+      "file": "active-development\\process\\MIG_MS_GetCustomers_Process.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_UpdateCustomer_Process",
+      "component": "MIG_MS_UpdateCustomer_Process_WSSOperation",
+      "file": "active-development\\connector-action\\MIG_MS_UpdateCustomer_Process_WSSOperation.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_UpdateCustomer_Process",
+      "component": "MIG_boomi_customer_api_DB_Connection",
+      "file": "active-development\\connector-settings\\MIG_boomi_customer_api_DB_Connection.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_UpdateCustomer_Process",
+      "component": "MIG_MS_UpdateCustomer_Process_DB__Update_Customer_Operation",
+      "file": "active-development\\connector-action\\MIG_MS_UpdateCustomer_Process_DB__Update_Customer_Operation.xml",
+      "status": "written"
+    },
+    {
+      "flow": "MIG_MS_UpdateCustomer_Process",
+      "component": "MIG_MS_UpdateCustomer_Process",
+      "file": "active-development\\process\\MIG_MS_UpdateCustomer_Process.xml",
+      "status": "written"
+    }
+  ],
+  "manual_review": [
+    {
+      "flow": "MIG_MS_CreateCustomer_Process",
+      "note": "Map step 'Map Request to DB Input' \u2014 wire source/target profiles in Boomi Map editor"
+    },
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "note": "Map step 'Map DB Row to API Response' \u2014 wire source/target profiles in Boomi Map editor"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "note": "Map step 'Map DB Row to API Response' \u2014 wire source/target profiles in Boomi Map editor"
+    }
+  ]
+}

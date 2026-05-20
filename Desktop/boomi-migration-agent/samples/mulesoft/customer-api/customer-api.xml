@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:db="http://www.mulesoft.org/schema/mule/db"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- Global Configurations -->
+    <http:listener-config name="HTTP_Listener_Config" doc:name="HTTP Listener Config">
+        <http:listener-connection host="0.0.0.0" port="8081"/>
+    </http:listener-config>
+
+    <db:config name="PostgreSQL_Config" doc:name="PostgreSQL Config">
+        <db:generic-connection
+            url="jdbc:postgresql://db.internal:5432/crm"
+            user="${db.user}"
+            password="${db.password}"
+            driverClassName="org.postgresql.Driver"/>
+    </db:config>
+
+    <!-- GET /api/customers — List all customers with optional status filter -->
+    <flow name="get-customers-flow" doc:name="GET /api/customers">
+        <http:listener config-ref="HTTP_Listener_Config" path="/api/customers" allowedMethods="GET" doc:name="HTTP Listener"/>
+        <set-variable variableName="statusFilter" value="#[attributes.queryParams.status default 'ACTIVE']" doc:name="Set Status Filter"/>
+        <db:select config-ref="PostgreSQL_Config" doc:name="Query Customers">
+            <db:sql>SELECT id, first_name, last_name, email, status, created_at FROM customers WHERE status = :status ORDER BY last_name</db:sql>
+            <db:input-parameters>#[{'status': vars.statusFilter}]</db:input-parameters>
+        </db:select>
+        <ee:transform doc:name="DB Result to JSON">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map (customer) -> {
+    id: customer.id,
+    firstName: customer.first_name,
+    lastName: customer.last_name,
+    email: customer.email,
+    status: customer.status,
+    createdAt: customer.created_at
+}]]></ee:set-payload>
+            </ee:message>
+            <ee:variables>
+                <ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0 output application/java --- 200]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <logger level="INFO" message="Retrieved #[sizeOf(payload)] customers" doc:name="Log Count"/>
+        <error-handler>
+            <on-error-propagate type="DB:CONNECTIVITY">
+                <ee:transform doc:name="DB Error Response">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0 output application/json --- {error: "Database unavailable", code: 503}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="ANY">
+                <ee:transform doc:name="Generic Error Response">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0 output application/json --- {error: error.description, code: 500}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+
+    <!-- GET /api/customers/{id} — Get single customer by ID -->
+    <flow name="get-customer-by-id-flow" doc:name="GET /api/customers/{id}">
+        <http:listener config-ref="HTTP_Listener_Config" path="/api/customers/{id}" allowedMethods="GET" doc:name="HTTP Listener"/>
+        <db:select config-ref="PostgreSQL_Config" doc:name="Query Customer by ID">
+            <db:sql>SELECT id, first_name, last_name, email, phone, status, created_at, updated_at FROM customers WHERE id = :id</db:sql>
+            <db:input-parameters>#[{'id': attributes.uriParams.id as Number}]</db:input-parameters>
+        </db:select>
+        <choice doc:name="Customer Found?">
+            <when expression="#[sizeOf(payload) == 0]">
+                <ee:transform doc:name="Not Found Response">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0 output application/json --- {error: "Customer not found", code: 404}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <otherwise>
+                <ee:transform doc:name="Customer to JSON">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var c = payload[0]
+---
+{
+    id: c.id,
+    firstName: c.first_name,
+    lastName: c.last_name,
+    email: c.email,
+    phone: c.phone,
+    status: c.status,
+    createdAt: c.created_at,
+    updatedAt: c.updated_at
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </otherwise>
+        </choice>
+        <error-handler>
+            <on-error-propagate type="ANY">
+                <ee:transform doc:name="Error Response">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0 output application/json --- {error: error.description, code: 500}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+
+    <!-- POST /api/customers — Create a new customer -->
+    <flow name="create-customer-flow" doc:name="POST /api/customers">
+        <http:listener config-ref="HTTP_Listener_Config" path="/api/customers" allowedMethods="POST" doc:name="HTTP Listener"/>
+        <ee:transform doc:name="Validate and Prepare Insert">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+    first_name: payload.firstName,
+    last_name: payload.lastName,
+    email: payload.email,
+    phone: payload.phone default null,
+    status: payload.status default "ACTIVE"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <db:insert config-ref="PostgreSQL_Config" doc:name="Insert Customer" autoGenerateKeys="true">
+            <db:sql>INSERT INTO customers (first_name, last_name, email, phone, status) VALUES (:first_name, :last_name, :email, :phone, :status)</db:sql>
+            <db:input-parameters>#[payload]</db:input-parameters>
+        </db:insert>
+        <set-variable variableName="newId" value="#[payload.generatedKeys[0].id]" doc:name="Capture New ID"/>
+        <ee:transform doc:name="Created Response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0 output application/json --- {id: vars.newId, status: "created"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <logger level="INFO" message="Created customer ID: #[vars.newId]" doc:name="Log Created"/>
+        <error-handler>
+            <on-error-propagate type="DB:CONSTRAINT_VIOLATION">
+                <ee:transform doc:name="Conflict Response">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0 output application/json --- {error: "Customer with this email already exists", code: 409}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="ANY">
+                <ee:transform doc:name="Error Response">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0 output application/json --- {error: error.description, code: 500}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+
+    <!-- PUT /api/customers/{id} — Update existing customer -->
+    <flow name="update-customer-flow" doc:name="PUT /api/customers/{id}">
+        <http:listener config-ref="HTTP_Listener_Config" path="/api/customers/{id}" allowedMethods="PUT" doc:name="HTTP Listener"/>
+        <db:update config-ref="PostgreSQL_Config" doc:name="Update Customer">
+            <db:sql>UPDATE customers SET first_name = :first_name, last_name = :last_name, email = :email, phone = :phone, status = :status, updated_at = NOW() WHERE id = :id</db:sql>
+            <db:input-parameters>#[{
+                first_name: payload.firstName,
+                last_name: payload.lastName,
+                email: payload.email,
+                phone: payload.phone,
+                status: payload.status,
+                id: attributes.uriParams.id as Number
+            }]</db:input-parameters>
+        </db:update>
+        <choice doc:name="Row Updated?">
+            <when expression="#[payload == 0]">
+                <ee:transform doc:name="Not Found Response">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0 output application/json --- {error: "Customer not found", code: 404}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <otherwise>
+                <ee:transform doc:name="Updated Response">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0 output application/json --- {status: "updated"}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </otherwise>
+        </choice>
+        <error-handler>
+            <on-error-propagate type="ANY">
+                <ee:transform doc:name="Error Response">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0 output application/json --- {error: error.description, code: 500}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+
+</mule>

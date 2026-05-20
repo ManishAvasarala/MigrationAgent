@@ -1,0 +1,318 @@
+{
+  "schema_version": "1.0",
+  "source_system": "mulesoft",
+  "source_version": "4.x",
+  "analyzed_at": "2026-05-20T16:37:31Z",
+  "project_name": "file-processor",
+  "source_files_analyzed": [
+    "samples\\mulesoft\\file-processor\\file-processor.xml"
+  ],
+  "summary": {
+    "total_flows": 4,
+    "primary_flows": 2,
+    "sub_flows": 2,
+    "total_connections": 3,
+    "gaps_found": 0,
+    "overall_complexity": "medium"
+  },
+  "connections": {
+    "SFTP_Config": {
+      "type": "sftp",
+      "host": "${sftp.host}",
+      "port": "22",
+      "username": "${sftp.user}",
+      "uses_env_vars": true,
+      "boomi_equivalent": "diskv2_connection_sftp",
+      "notes": "Map to Disk V2 connection with SFTP transport"
+    },
+    "Local_File_Config": {
+      "type": "file",
+      "working_dir": "/tmp/orders",
+      "boomi_equivalent": "diskv2_connection",
+      "notes": "Map to Disk V2 connection (local file system)"
+    },
+    "Orders_API_Config": {
+      "type": "http_request",
+      "protocol": "HTTPS",
+      "host": "${orders.api.host}",
+      "port": "443",
+      "base_path": "",
+      "auth_type": "basic",
+      "boomi_equivalent": "rest_connection",
+      "notes": "Auth: basic"
+    }
+  },
+  "integrations": [
+    {
+      "name": "sftp-order-pickup-flow",
+      "source_name": "sftp-order-pickup-flow",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "sftp:listener",
+        "type": "sftp_listener",
+        "label": "sftp:listener",
+        "config_ref": "SFTP_Config",
+        "requires_review": false,
+        "boomi_step": "Start_DiskV2_Listen_SFTP",
+        "boomi_component": "diskv2_connection + diskv2_operation",
+        "complexity": "low",
+        "directory": "/inbound/orders",
+        "file_pattern": "orders_*.csv",
+        "post_processing": "/inbound/orders/processed"
+      },
+      "steps": [
+        {
+          "source_tag": "core:logger",
+          "type": "logger",
+          "label": "core:logger",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Notify",
+          "boomi_component": "notify_step",
+          "complexity": "low",
+          "level": "INFO",
+          "message": "Processing order file: #[attributes.fileName]",
+          "sequence": 1
+        },
+        {
+          "source_tag": "core:set-variable",
+          "type": "set_variable",
+          "label": "core:set-variable",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Set_Properties",
+          "boomi_component": "set_properties_step",
+          "complexity": "low",
+          "variable_name": "sourceFileName",
+          "value": "#[attributes.fileName]",
+          "sequence": 2
+        },
+        {
+          "source_tag": "core:flow-ref",
+          "type": "flow_ref",
+          "label": "parse-csv-sub-flow",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Process_Call",
+          "boomi_component": "process_call_step",
+          "complexity": "low",
+          "target_flow": "parse-csv-sub-flow",
+          "sequence": 3
+        },
+        {
+          "source_tag": "core:foreach",
+          "type": "foreach",
+          "label": "core:foreach",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Data_Process_Split",
+          "boomi_component": "data_process_step",
+          "complexity": "medium",
+          "collection": null,
+          "batch_size": null,
+          "sequence": 4
+        },
+        {
+          "source_tag": "core:logger",
+          "type": "logger",
+          "label": "core:logger",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Notify",
+          "boomi_component": "notify_step",
+          "complexity": "low",
+          "level": "INFO",
+          "message": "Completed processing file: #[vars.sourceFileName]",
+          "sequence": 5
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_sftp_order_pickup_flow",
+        "pattern": "file_processing",
+        "trigger_component": "Start_DiskV2_Listen_SFTP",
+        "step_components": [
+          "Notify",
+          "Set_Properties",
+          "Process_Call",
+          "Data_Process_Split",
+          "Notify"
+        ],
+        "connections_needed": [],
+        "complexity": "medium",
+        "manual_review_required": false
+      }
+    },
+    {
+      "name": "parse-csv-sub-flow",
+      "source_name": "parse-csv-sub-flow",
+      "flow_type": "sub_flow",
+      "trigger": null,
+      "steps": [
+        {
+          "source_tag": "ee:transform",
+          "type": "transform",
+          "label": "ee:transform",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Map",
+          "boomi_component": "transform.map + profiles",
+          "complexity": "medium",
+          "has_dataweave": true,
+          "output_format": "application/java",
+          "sets_variables": false,
+          "sequence": 1
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_parse_csv_sub_flow",
+        "pattern": "subprocess",
+        "trigger_component": null,
+        "step_components": [
+          "Map"
+        ],
+        "connections_needed": [],
+        "complexity": "medium",
+        "manual_review_required": false
+      }
+    },
+    {
+      "name": "post-order-sub-flow",
+      "source_name": "post-order-sub-flow",
+      "flow_type": "sub_flow",
+      "trigger": null,
+      "steps": [
+        {
+          "source_tag": "ee:transform",
+          "type": "transform",
+          "label": "ee:transform",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Map",
+          "boomi_component": "transform.map + profiles",
+          "complexity": "medium",
+          "has_dataweave": true,
+          "output_format": "application/json",
+          "sets_variables": false,
+          "sequence": 1
+        },
+        {
+          "source_tag": "http:request",
+          "type": "http_request",
+          "label": "http:request",
+          "config_ref": "Orders_API_Config",
+          "requires_review": false,
+          "boomi_step": "REST_Connector",
+          "boomi_component": "rest_connection + rest_operation",
+          "complexity": "low",
+          "method": "POST",
+          "path": "/v1/orders",
+          "sequence": 2
+        },
+        {
+          "source_tag": "core:logger",
+          "type": "logger",
+          "label": "core:logger",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Notify",
+          "boomi_component": "notify_step",
+          "complexity": "low",
+          "level": "DEBUG",
+          "message": "Order #[payload.orderNumber] posted successfully",
+          "sequence": 3
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_post_order_sub_flow",
+        "pattern": "subprocess",
+        "trigger_component": null,
+        "step_components": [
+          "Map",
+          "REST_Connector",
+          "Notify"
+        ],
+        "connections_needed": [
+          "rest_connection"
+        ],
+        "complexity": "medium",
+        "manual_review_required": false
+      }
+    },
+    {
+      "name": "retry-failed-orders-flow",
+      "source_name": "retry-failed-orders-flow",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "core:scheduler",
+        "type": "scheduler_fixed",
+        "label": "core:scheduler",
+        "config_ref": null,
+        "requires_review": true,
+        "boomi_step": "REVIEW_REQUIRED",
+        "boomi_component": "TBD",
+        "complexity": "high",
+        "frequency": "1",
+        "time_unit": "HOURS"
+      },
+      "steps": [
+        {
+          "source_tag": "file:list",
+          "type": "file_list",
+          "label": "file:list",
+          "config_ref": "Local_File_Config",
+          "requires_review": false,
+          "boomi_step": "DiskV2_QUERY",
+          "boomi_component": "diskv2_connection + diskv2_operation",
+          "complexity": "low",
+          "directory": "/retry",
+          "sequence": 1
+        },
+        {
+          "source_tag": "core:foreach",
+          "type": "foreach",
+          "label": "core:foreach",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Data_Process_Split",
+          "boomi_component": "data_process_step",
+          "complexity": "medium",
+          "collection": null,
+          "batch_size": null,
+          "sequence": 2
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_retry_failed_orders_flow",
+        "pattern": "scheduled_batch",
+        "trigger_component": "REVIEW_REQUIRED",
+        "step_components": [
+          "DiskV2_QUERY",
+          "Data_Process_Split"
+        ],
+        "connections_needed": [
+          "diskv2_connection"
+        ],
+        "complexity": "medium",
+        "manual_review_required": false
+      }
+    }
+  ],
+  "gaps": [],
+  "migration_notes": ""
+}

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:file="http://www.mulesoft.org/schema/mule/file"
+      xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+        http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- Global Configurations -->
+    <sftp:config name="SFTP_Config" doc:name="SFTP Config">
+        <sftp:connection host="${sftp.host}" port="22" username="${sftp.user}" password="${sftp.password}"/>
+    </sftp:config>
+
+    <file:config name="Local_File_Config" doc:name="Local File Config">
+        <file:connection workingDir="/tmp/orders"/>
+    </file:config>
+
+    <http:request-config name="Orders_API_Config" doc:name="Orders API Config">
+        <http:request-connection protocol="HTTPS" host="${orders.api.host}" port="443">
+            <http:authentication>
+                <http:basic-authentication username="${orders.api.user}" password="${orders.api.password}"/>
+            </http:authentication>
+        </http:request-connection>
+    </http:request-config>
+
+    <!-- Main flow: Poll SFTP for new order CSV files every 5 minutes -->
+    <flow name="sftp-order-pickup-flow" doc:name="SFTP Order File Pickup">
+        <sftp:listener config-ref="SFTP_Config" directory="/inbound/orders" doc:name="SFTP Listener">
+            <scheduling-strategy>
+                <fixed-frequency frequency="5" timeUnit="MINUTES"/>
+            </scheduling-strategy>
+            <sftp:matcher filenamePattern="orders_*.csv" directories="EXCLUDE"/>
+            <sftp:post-processing-action moveToDirectory="/inbound/orders/processed" renameTo="#[attributes.fileName ++ '.done']"/>
+        </sftp:listener>
+        <logger level="INFO" message="Processing order file: #[attributes.fileName]" doc:name="Log File Start"/>
+        <set-variable variableName="sourceFileName" value="#[attributes.fileName]" doc:name="Capture Filename"/>
+        <flow-ref name="parse-csv-sub-flow" doc:name="Parse CSV"/>
+        <foreach doc:name="Process Each Order">
+            <try doc:name="Try Per Order">
+                <flow-ref name="post-order-sub-flow" doc:name="Post Order to API"/>
+                <error-handler>
+                    <on-error-continue type="HTTP:CONNECTIVITY, HTTP:TIMEOUT">
+                        <logger level="WARN" message="Retryable error for order - queuing for retry: #[error.description]" doc:name="Log Retry"/>
+                        <file:write config-ref="Local_File_Config" path="/retry/#[vars.sourceFileName]_#[now() as String]_failed.json" doc:name="Write to Retry Queue">
+                            <file:content>#[output application/json --- payload]</file:content>
+                        </file:write>
+                    </on-error-continue>
+                    <on-error-continue type="ANY">
+                        <logger level="ERROR" message="Unrecoverable error processing order: #[error.description]" doc:name="Log Error"/>
+                        <file:write config-ref="Local_File_Config" path="/errors/#[vars.sourceFileName]_#[now() as String]_error.json" doc:name="Write to Error Dir">
+                            <file:content>#[output application/json --- {order: payload, error: error.description}]</file:content>
+                        </file:write>
+                    </on-error-continue>
+                </error-handler>
+            </try>
+        </foreach>
+        <logger level="INFO" message="Completed processing file: #[vars.sourceFileName]" doc:name="Log File Complete"/>
+    </flow>
+
+    <!-- Sub-flow: Parse CSV content into array of order objects -->
+    <sub-flow name="parse-csv-sub-flow" doc:name="Parse CSV to Orders">
+        <ee:transform doc:name="CSV String to Order Array">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+var csvData = payload as String
+var lines = csvData splitBy "\n"
+var headers = (lines[0] splitBy ",") map trim($)
+var dataLines = lines[1 to -1] filter ($ != "")
+---
+dataLines map (line) -> (
+    do {
+        var cols = (line splitBy ",") map trim($)
+        ---
+        headers reduce (header, acc = {}) -> acc ++ {(header): cols[$$]}
+    }
+)]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </sub-flow>
+
+    <!-- Sub-flow: POST a single order to the Orders API -->
+    <sub-flow name="post-order-sub-flow" doc:name="POST Order to API">
+        <ee:transform doc:name="Map CSV Fields to API Payload">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    orderNumber: payload.order_number,
+    customerId: payload.customer_id as Number,
+    orderDate: payload.order_date as Date {format: "MM/dd/yyyy"},
+    items: [
+        {
+            sku: payload.sku,
+            quantity: payload.quantity as Number,
+            unitPrice: payload.unit_price as Number
+        }
+    ],
+    shippingAddress: {
+        street: payload.ship_street,
+        city: payload.ship_city,
+        state: payload.ship_state,
+        zip: payload.ship_zip
+    },
+    totalAmount: payload.total_amount as Number,
+    source: "CSV_IMPORT"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <http:request config-ref="Orders_API_Config" method="POST" path="/v1/orders" doc:name="POST to Orders API">
+            <http:headers>#[{"Content-Type": "application/json", "X-Source": "mulesoft-import"}]</http:headers>
+        </http:request>
+        <logger level="DEBUG" message="Order #[payload.orderNumber] posted successfully" doc:name="Log Success"/>
+    </sub-flow>
+
+    <!-- Retry flow: Reprocess failed orders from retry queue (runs hourly) -->
+    <flow name="retry-failed-orders-flow" doc:name="Retry Failed Orders">
+        <scheduler doc:name="Hourly Retry Scheduler">
+            <scheduling-strategy>
+                <fixed-frequency frequency="1" timeUnit="HOURS"/>
+            </scheduling-strategy>
+        </scheduler>
+        <file:list config-ref="Local_File_Config" directoryPath="/retry" doc:name="List Retry Files">
+            <file:matcher filenamePattern="*_failed.json"/>
+        </file:list>
+        <foreach doc:name="Retry Each Failed Order">
+            <file:read config-ref="Local_File_Config" path="#[attributes.path]" doc:name="Read Failed Order"/>
+            <flow-ref name="post-order-sub-flow" doc:name="Retry Post to API"/>
+            <file:delete config-ref="Local_File_Config" path="#[attributes.path]" doc:name="Delete Retry File"/>
+        </foreach>
+    </flow>
+
+</mule>

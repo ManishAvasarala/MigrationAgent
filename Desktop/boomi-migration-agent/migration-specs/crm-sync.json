@@ -1,0 +1,334 @@
+{
+  "schema_version": "1.0",
+  "source_system": "mulesoft",
+  "source_version": "4.x",
+  "analyzed_at": "2026-05-20T16:37:31Z",
+  "project_name": "crm-sync",
+  "source_files_analyzed": [
+    "samples\\mulesoft\\crm-sync\\crm-sync.xml"
+  ],
+  "summary": {
+    "total_flows": 4,
+    "primary_flows": 1,
+    "sub_flows": 3,
+    "total_connections": 3,
+    "gaps_found": 0,
+    "overall_complexity": "medium"
+  },
+  "connections": {
+    "Salesforce_Config": {
+      "type": "salesforce",
+      "boomi_equivalent": "salesforce_connection",
+      "requires_gui_setup": true,
+      "notes": "Pull existing Salesforce connection from Boomi platform first. OAuth setup requires GUI."
+    },
+    "MySQL_CRM_Config": {
+      "type": "db",
+      "driver": "mysql",
+      "host": "${mysql.host}",
+      "port": "3306",
+      "database": "crm_db",
+      "jdbc_url": "",
+      "uses_env_vars": true,
+      "boomi_equivalent": "databasev2_connection",
+      "boomi_driver": "Mysql",
+      "notes": "Driver: mysql"
+    },
+    "SMTP_Config": {
+      "type": "email_smtp",
+      "host": "${smtp.host}",
+      "port": "587",
+      "boomi_equivalent": "mail_connector",
+      "notes": "Use Boomi Mail connector or HTTP connector to mail relay service"
+    }
+  },
+  "integrations": [
+    {
+      "name": "sf-to-db-accounts-sync-flow",
+      "source_name": "sf-to-db-accounts-sync-flow",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "core:scheduler",
+        "type": "scheduler_cron",
+        "label": "core:scheduler",
+        "config_ref": null,
+        "requires_review": true,
+        "boomi_step": "REVIEW_REQUIRED",
+        "boomi_component": "TBD",
+        "complexity": "high",
+        "expression": "0 0 2 * * ?",
+        "timezone": "America/New_York"
+      },
+      "steps": [
+        {
+          "source_tag": "core:logger",
+          "type": "logger",
+          "label": "core:logger",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Notify",
+          "boomi_component": "notify_step",
+          "complexity": "low",
+          "level": "INFO",
+          "message": "Starting Salesforce account sync at #[now()]",
+          "sequence": 1
+        },
+        {
+          "source_tag": "core:set-variable",
+          "type": "set_variable",
+          "label": "core:set-variable",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Set_Properties",
+          "boomi_component": "set_properties_step",
+          "complexity": "low",
+          "variable_name": "syncStart",
+          "value": "#[now()]",
+          "sequence": 2
+        },
+        {
+          "source_tag": "core:set-variable",
+          "type": "set_variable",
+          "label": "core:set-variable",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Set_Properties",
+          "boomi_component": "set_properties_step",
+          "complexity": "low",
+          "variable_name": "syncStats",
+          "value": "#[{inserted: 0, updated: 0, failed: 0}]",
+          "sequence": 3
+        },
+        {
+          "source_tag": "salesforce:query",
+          "type": "salesforce_query",
+          "label": "salesforce:query",
+          "config_ref": "Salesforce_Config",
+          "requires_review": false,
+          "boomi_step": "Salesforce_Query",
+          "boomi_component": "salesforce_connection + salesforce_operation",
+          "complexity": "low",
+          "soql": "SELECT Id, Name, BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry, Phone, Website, Industry, AnnualRevenue, NumberOfEmployees, Type, OwnerId, LastModifiedDate FROM Account WHERE LastModifiedDate >= LAST_N_DAYS:1 ORDER BY LastModifiedDate ASC",
+          "sequence": 4
+        },
+        {
+          "source_tag": "core:logger",
+          "type": "logger",
+          "label": "core:logger",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Notify",
+          "boomi_component": "notify_step",
+          "complexity": "low",
+          "level": "INFO",
+          "message": "Found #[sizeOf(payload)] Salesforce accounts to sync",
+          "sequence": 5
+        },
+        {
+          "source_tag": "core:foreach",
+          "type": "foreach",
+          "label": "core:foreach",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Data_Process_Split",
+          "boomi_component": "data_process_step",
+          "complexity": "medium",
+          "collection": null,
+          "batch_size": "50",
+          "sequence": 6
+        },
+        {
+          "source_tag": "core:flow-ref",
+          "type": "flow_ref",
+          "label": "send-sync-notification-sub-flow",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Process_Call",
+          "boomi_component": "process_call_step",
+          "complexity": "low",
+          "target_flow": "send-sync-notification-sub-flow",
+          "sequence": 7
+        },
+        {
+          "source_tag": "core:logger",
+          "type": "logger",
+          "label": "core:logger",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Notify",
+          "boomi_component": "notify_step",
+          "complexity": "low",
+          "level": "INFO",
+          "message": "Sync complete. Inserted: #[vars.syncStats.inserted], Updated: #[vars.syncStats.updated], Failed: #[vars.syncStats.failed]",
+          "sequence": 8
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": true,
+        "strategies": [
+          {
+            "error_type": "APP:DB_UNAVAILABLE",
+            "strategy": "propagate",
+            "boomi_equivalent": "try_catch_rethrow"
+          }
+        ]
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_sf_to_db_accounts_sync_flow",
+        "pattern": "scheduled_batch",
+        "trigger_component": "REVIEW_REQUIRED",
+        "step_components": [
+          "Notify",
+          "Set_Properties",
+          "Set_Properties",
+          "Salesforce_Query",
+          "Notify",
+          "Data_Process_Split",
+          "Process_Call",
+          "Notify"
+        ],
+        "connections_needed": [
+          "salesforce_connection"
+        ],
+        "complexity": "medium",
+        "manual_review_required": false
+      }
+    },
+    {
+      "name": "upsert-account-to-db-sub-flow",
+      "source_name": "upsert-account-to-db-sub-flow",
+      "flow_type": "sub_flow",
+      "trigger": null,
+      "steps": [
+        {
+          "source_tag": "ee:transform",
+          "type": "transform",
+          "label": "ee:transform",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Map",
+          "boomi_component": "transform.map + profiles",
+          "complexity": "medium",
+          "has_dataweave": true,
+          "output_format": "application/java",
+          "sets_variables": false,
+          "sequence": 1
+        },
+        {
+          "source_tag": "db:select",
+          "type": "db_select",
+          "label": "db:select",
+          "config_ref": "MySQL_CRM_Config",
+          "requires_review": false,
+          "boomi_step": "DatabaseV2_GET",
+          "boomi_component": "databasev2_connection + databasev2_operation",
+          "complexity": "low",
+          "sql": "SELECT id FROM accounts WHERE sf_id = :sf_id",
+          "has_parameters": true,
+          "sequence": 2
+        },
+        {
+          "source_tag": "core:choice",
+          "type": "choice_router",
+          "label": "core:choice",
+          "config_ref": null,
+          "requires_review": false,
+          "boomi_step": "Decision",
+          "boomi_component": "decision_step",
+          "complexity": "low",
+          "branch_count": 2,
+          "sequence": 3
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_upsert_account_to_db_sub_flow",
+        "pattern": "subprocess",
+        "trigger_component": null,
+        "step_components": [
+          "Map",
+          "DatabaseV2_GET",
+          "Decision"
+        ],
+        "connections_needed": [
+          "databasev2_connection"
+        ],
+        "complexity": "medium",
+        "manual_review_required": false
+      }
+    },
+    {
+      "name": "send-sync-notification-sub-flow",
+      "source_name": "send-sync-notification-sub-flow",
+      "flow_type": "sub_flow",
+      "trigger": null,
+      "steps": [
+        {
+          "source_tag": "email:send",
+          "type": "email_send",
+          "label": "email:send",
+          "config_ref": "SMTP_Config",
+          "requires_review": false,
+          "boomi_step": "Mail_Connector",
+          "boomi_component": "http_rest_to_mail_or_mail_connector",
+          "complexity": "low",
+          "sequence": 1
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_send_sync_notification_sub_flow",
+        "pattern": "subprocess",
+        "trigger_component": null,
+        "step_components": [
+          "Mail_Connector"
+        ],
+        "connections_needed": [],
+        "complexity": "low",
+        "manual_review_required": false
+      }
+    },
+    {
+      "name": "send-sync-error-notification-sub-flow",
+      "source_name": "send-sync-error-notification-sub-flow",
+      "flow_type": "sub_flow",
+      "trigger": null,
+      "steps": [
+        {
+          "source_tag": "email:send",
+          "type": "email_send",
+          "label": "email:send",
+          "config_ref": "SMTP_Config",
+          "requires_review": false,
+          "boomi_step": "Mail_Connector",
+          "boomi_component": "http_rest_to_mail_or_mail_connector",
+          "complexity": "low",
+          "sequence": 1
+        }
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_MS_send_sync_error_notification_sub_flow",
+        "pattern": "subprocess",
+        "trigger_component": null,
+        "step_components": [
+          "Mail_Connector"
+        ],
+        "connections_needed": [],
+        "complexity": "low",
+        "manual_review_required": false
+      }
+    }
+  ],
+  "gaps": [],
+  "migration_notes": ""
+}

@@ -1,0 +1,63 @@
+{
+  "project": "boomi-customer-api",
+  "folder_id": 31269322,
+  "folder_name": "MIG_CustomerAPI",
+  "pg_connection_id": 19511367,
+  "generated_at": "2026-05-20T21:05:35.564074Z",
+  "recipes": [
+    {
+      "name": "MIG_MS_CreateCustomer_Process",
+      "id": 72857456,
+      "status": "created",
+      "manual_review_items": 1
+    },
+    {
+      "name": "MIG_MS_GetCustomerById_Process",
+      "id": 72857457,
+      "status": "created",
+      "manual_review_items": 2
+    },
+    {
+      "name": "MIG_MS_GetCustomers_Process",
+      "id": 72857458,
+      "status": "created",
+      "manual_review_items": 2
+    },
+    {
+      "name": "MIG_MS_UpdateCustomer_Process",
+      "id": 72857459,
+      "status": "created",
+      "manual_review_items": 2
+    }
+  ],
+  "manual_review_required": [
+    {
+      "recipe": "MIG_MS_CreateCustomer_Process",
+      "note": "Boomi Map step 'Map Request to DB Input' \u2014 implement field mapping in Workato using formula pills or a separate recipe step"
+    },
+    {
+      "recipe": "MIG_MS_GetCustomerById_Process",
+      "note": "Boomi Groovy script (purpose: not_found_handler) \u2014 implement equivalent logic in Workato using formula pills or custom Ruby. Original script:\nimport java.util.Properties;\nimport java.io.InputStream;\nimport java.io.ByteArrayInputStream;\n\nint count = dataContext.getDataCount();\nif (count == 0) {\n    String notFound = \"{\\\"error\\\": \\\"Customer not found\\\", \\\"code\\\": 404}\";\n    dataContext.storeStream(new ByteArrayInputStream(notFound.getBytes(\"UTF-8\")), new Properties());\n} else {\n    for (int i = 0; i < count; i++) {\n        InputStream is ..."
+    },
+    {
+      "recipe": "MIG_MS_GetCustomerById_Process",
+      "note": "Boomi Map step 'Map DB Row to API Response' \u2014 implement field mapping in Workato using formula pills or a separate recipe step"
+    },
+    {
+      "recipe": "MIG_MS_GetCustomers_Process",
+      "note": "Boomi Map step 'Map DB Row to API Response' \u2014 implement field mapping in Workato using formula pills or a separate recipe step"
+    },
+    {
+      "recipe": "MIG_MS_GetCustomers_Process",
+      "note": "Boomi Groovy script (purpose: array_combiner) \u2014 implement equivalent logic in Workato using formula pills or custom Ruby. Original script:\nimport java.util.Properties;\nimport java.io.InputStream;\nimport java.io.ByteArrayInputStream;\n\nStringBuilder sb = new StringBuilder(\"[\");\nint count = dataContext.getDataCount();\nfor (int i = 0; i < count; i++) {\n    InputStream is = dataContext.getStream(i);\n    Properties props = dataContext.getProperties(i);\n    String doc = new String(is.bytes, \"UTF-8\");\n    if (i > 0) sb.append(\",\");\n    sb.ap..."
+    },
+    {
+      "recipe": "MIG_MS_UpdateCustomer_Process",
+      "note": "Boomi Set Properties step 'Capture customer ID' \u2014 in Workato, use trigger_input or trigger URL params directly"
+    },
+    {
+      "recipe": "MIG_MS_UpdateCustomer_Process",
+      "note": "Boomi Groovy script (purpose: array_combiner) \u2014 implement equivalent logic in Workato using formula pills or custom Ruby. Original script:\nimport java.util.Properties;\nimport java.io.InputStream;\nimport java.io.ByteArrayInputStream;\nimport groovy.json.JsonSlurper;\n\nfor (int i = 0; i < dataContext.getDataCount(); i++) {\n    InputStream is = dataContext.getStream(i);\n    Properties props = dataContext.getProperties(i);\n\n    String body = new String(is.bytes, \"UTF-8\");\n    String customerId = props.getProperty(\"document.dynamic.userdefi..."
+    }
+  ]
+}

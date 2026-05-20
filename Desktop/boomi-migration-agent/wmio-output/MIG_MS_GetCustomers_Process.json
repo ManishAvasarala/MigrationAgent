@@ -1,0 +1,74 @@
+{
+  "name": "MIG_MS_GetCustomers_Process",
+  "description": "Migrated from boomi. Generated 2026-05-20T20:29:40Z",
+  "nodes": [
+    {
+      "uid": "497df4de54eb4b01",
+      "type": "trigger",
+      "name": "receive_http_request",
+      "label": "WSS Listen GET /ws/simple/queryCustomers",
+      "configuration": {
+        "method": "GET",
+        "path": "/customers",
+        "headers": {}
+      }
+    },
+    {
+      "uid": "69f75745d6344eff",
+      "type": "action",
+      "name": "set_variable",
+      "label": "Build status param",
+      "configuration": {
+        "content": "{\"status\": \"'{1}'\"}",
+        "_note": "Configure response payload in webMethods.io"
+      }
+    },
+    {
+      "uid": "800d47a548fa44af",
+      "type": "action",
+      "name": "select_rows",
+      "label": "DB: Get Customers",
+      "configuration": {
+        "table": "customers",
+        "sql": "SELECT id, first_name, last_name, email, status, created_at FROM customers WHERE status = $status ORDER BY last_name",
+        "_note": "Configure database connection in webMethods.io connector"
+      }
+    },
+    {
+      "uid": "8f3db2d135544d21",
+      "type": "action",
+      "name": "transform",
+      "label": "Map DB Row to API Response",
+      "configuration": {
+        "_note": "Configure field mapping in webMethods.io Transform step"
+      }
+    },
+    {
+      "uid": "7a13a1abe2884a1c",
+      "type": "action",
+      "name": "custom_action",
+      "label": "Combine into JSON array",
+      "configuration": {
+        "_note": "Implement in webMethods.io custom action editor"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "497df4de54eb4b01",
+      "to": "69f75745d6344eff"
+    },
+    {
+      "from": "69f75745d6344eff",
+      "to": "800d47a548fa44af"
+    },
+    {
+      "from": "800d47a548fa44af",
+      "to": "8f3db2d135544d21"
+    },
+    {
+      "from": "8f3db2d135544d21",
+      "to": "7a13a1abe2884a1c"
+    }
+  ]
+}

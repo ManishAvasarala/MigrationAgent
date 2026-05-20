@@ -1,0 +1,61 @@
+{
+  "name": "MIG_MS_CreateCustomer_Process",
+  "description": "Migrated from boomi. Generated 2026-05-20T20:29:40Z",
+  "nodes": [
+    {
+      "uid": "904d1d5511b64ead",
+      "type": "trigger",
+      "name": "receive_http_request",
+      "label": "WSS Listen POST /ws/simple/createCustomer",
+      "configuration": {
+        "method": "POST",
+        "path": "/customers",
+        "headers": {}
+      }
+    },
+    {
+      "uid": "79cca1dcdfee436d",
+      "type": "action",
+      "name": "transform",
+      "label": "Map Request to DB Input",
+      "configuration": {
+        "_note": "Configure field mapping in webMethods.io Transform step"
+      }
+    },
+    {
+      "uid": "c1f0fc3a84214481",
+      "type": "action",
+      "name": "insert_row",
+      "label": "DB: Insert Customer",
+      "configuration": {
+        "table": "customers",
+        "sql": "INSERT INTO customers (first_name, last_name, email, phone, status) VALUES ($first_name, $last_name, $email, $phone, $status)",
+        "_note": "Configure database connection in webMethods.io connector"
+      }
+    },
+    {
+      "uid": "0c2a29ad1b0f43d9",
+      "type": "action",
+      "name": "set_variable",
+      "label": "Success Response",
+      "configuration": {
+        "content": "{\"status\": \"created\"}",
+        "_note": "Configure response payload in webMethods.io"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "904d1d5511b64ead",
+      "to": "79cca1dcdfee436d"
+    },
+    {
+      "from": "79cca1dcdfee436d",
+      "to": "c1f0fc3a84214481"
+    },
+    {
+      "from": "c1f0fc3a84214481",
+      "to": "0c2a29ad1b0f43d9"
+    }
+  ]
+}

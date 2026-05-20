@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Skill(bc-integration:boomi-integration)",
+      "Read(~/.claude/plugins/bc-**)",
+      "Bash(bash */skills/boomi-integration/scripts/*)",
+      "Bash(python3 */skills/boomi-integration/scripts/*)"
+    ],
+    "deny": [
+      "Read(**/.env*)",
+      "Bash(*.env*)"
+    ]
+  },
+  "outputStyle": "Explanatory"
+}

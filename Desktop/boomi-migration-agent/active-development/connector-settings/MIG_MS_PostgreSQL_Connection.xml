@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bns:Component xmlns:bns="http://api.platform.boomi.com/"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               componentId="0815e48b-507d-46f2-b885-4ec8a8c42909" name="MIG_MS_PostgreSQL_Connection"
+               type="connector-settings" subType="officialboomi-X3979C-dbv2da-prod"
+               folderId="Rjo4NTYzMTMw">
+  <bns:encryptedValues>
+    <bns:encryptedValue isSet="true" path="//GenericConnectionConfig/field[@type='password']"/>
+  </bns:encryptedValues>
+  <bns:description>built with boomi-companion v1.0.0</bns:description><bns:object>
+    <GenericConnectionConfig>
+      <field id="url" type="string" value="jdbc:postgresql://db.internal:5432/crm"/>
+      <field id="className" type="string" value="org.postgresql.Driver"/>
+      <field id="username" type="string" value="${db.user}"/>
+      <field id="password" type="password" value="${db.password}"/>
+      <field id="CustomProperties" type="customproperties">
+        <customProperties/>
+      </field>
+      <field id="schemaName" type="string" value=""/>
+      <field id="connectTimeOut" type="integer"/>
+      <field id="readTimeOut" type="integer"/>
+      <field id="enablePooling" type="boolean" value="false"/>
+      <field id="maximumConnections" type="integer" value=""/>
+      <field id="minimumConnections" type="integer" value=""/>
+      <field id="maximumIdleTime" type="integer" value=""/>
+      <field id="whenExhaustedAction" type="string" value=""/>
+      <field id="maximumWaitTime" type="integer" value=""/>
+      <field id="testOnBorrow" type="boolean" value=""/>
+      <field id="testOnReturn" type="boolean" value=""/>
+      <field id="testWhileIdle" type="boolean" value=""/>
+      <field id="validationQuery" type="string" value=""/>
+    </GenericConnectionConfig>
+  </bns:object>
+</bns:Component>

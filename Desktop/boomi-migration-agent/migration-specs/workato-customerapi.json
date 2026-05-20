@@ -1,0 +1,370 @@
+{
+  "schema_version": "1.0",
+  "source_system": "workato",
+  "source_version": "workato_cloud",
+  "analyzed_at": "2026-05-20T22:45:08.214301+00:00",
+  "project_name": "workato-customerapi",
+  "source_files_analyzed": [
+    "workato:folder/31269322"
+  ],
+  "summary": {
+    "total_flows": 4,
+    "primary_flows": 4,
+    "sub_flows": 0,
+    "total_connections": 0,
+    "gaps_found": 7,
+    "overall_complexity": "medium"
+  },
+  "connections": {},
+  "integrations": [
+    {
+      "name": "MIG_MS_UpdateCustomer_Process",
+      "source_name": "MIG_MS_UpdateCustomer_Process",
+      "recipe_id": 72857459,
+      "description": "Migrated from boomi by migration-agent. Source flow: MIG_MS_UpdateCustomer_Process. Generated: 2026-05-20T21:05:34.934949Z",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "workato:callable_recipe",
+        "type": "http_listener",
+        "label": "WSS Listen PUT /ws/simple/updateCustomer",
+        "requires_review": false,
+        "workato_provider": "workato",
+        "workato_name": "callable_recipe",
+        "http_method": "GET",
+        "path": "/endpoint",
+        "has_request_body": false
+      },
+      "steps": [
+        {
+          "source_tag": "workato:custom_action",
+          "type": "custom_script",
+          "label": "[REVIEW REQUIRED] Capture customer ID",
+          "config_ref": "workato",
+          "requires_review": true,
+          "workato_provider": "workato",
+          "workato_name": "custom_action",
+          "complexity": "low",
+          "sequence": 1
+        },
+        {
+          "source_tag": "workato:custom_action",
+          "type": "custom_script",
+          "label": "[REVIEW REQUIRED] Build UpdateInput JSON",
+          "config_ref": "workato",
+          "requires_review": true,
+          "workato_provider": "workato",
+          "workato_name": "custom_action",
+          "complexity": "low",
+          "sequence": 2
+        },
+        {
+          "source_tag": "postgresql:update_rows",
+          "type": "db_update",
+          "label": "Update rows",
+          "config_ref": "postgresql",
+          "requires_review": false,
+          "workato_provider": "postgresql",
+          "workato_name": "update_rows",
+          "complexity": "low",
+          "sequence": 3,
+          "table": "",
+          "has_parameters": false,
+          "workato_input": {},
+          "sql_operation": "UPDATE"
+        },
+        {
+          "source_tag": "workato:callable_recipe_response",
+          "type": "return_response",
+          "label": "Success Response",
+          "config_ref": "workato",
+          "requires_review": false,
+          "workato_provider": "workato",
+          "workato_name": "callable_recipe_response",
+          "complexity": "low",
+          "sequence": 4,
+          "static_content": "",
+          "status_code": "200"
+        }
+      ],
+      "connections_used": [
+        "postgresql"
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      }
+    },
+    {
+      "name": "MIG_MS_GetCustomers_Process",
+      "source_name": "MIG_MS_GetCustomers_Process",
+      "recipe_id": 72857458,
+      "description": "Migrated from boomi by migration-agent. Source flow: MIG_MS_GetCustomers_Process. Generated: 2026-05-20T21:05:34.366948Z",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "workato:callable_recipe",
+        "type": "http_listener",
+        "label": "WSS Listen GET /ws/simple/queryCustomers",
+        "requires_review": false,
+        "workato_provider": "workato",
+        "workato_name": "callable_recipe",
+        "http_method": "GET",
+        "path": "/endpoint",
+        "has_request_body": false
+      },
+      "steps": [
+        {
+          "source_tag": "workato:callable_recipe_response",
+          "type": "return_response",
+          "label": "Build status param",
+          "config_ref": "workato",
+          "requires_review": false,
+          "workato_provider": "workato",
+          "workato_name": "callable_recipe_response",
+          "complexity": "low",
+          "sequence": 1,
+          "static_content": "",
+          "status_code": "200"
+        },
+        {
+          "source_tag": "postgresql:search_rows",
+          "type": "db_select",
+          "label": "Select rows",
+          "config_ref": "postgresql",
+          "requires_review": false,
+          "workato_provider": "postgresql",
+          "workato_name": "search_rows",
+          "complexity": "low",
+          "sequence": 2,
+          "table": "",
+          "has_parameters": false,
+          "workato_input": {},
+          "sql_operation": "SELECT"
+        },
+        {
+          "source_tag": "workato:custom_action",
+          "type": "custom_script",
+          "label": "[REVIEW REQUIRED] Map DB Row to API Response",
+          "config_ref": "workato",
+          "requires_review": true,
+          "workato_provider": "workato",
+          "workato_name": "custom_action",
+          "complexity": "low",
+          "sequence": 3
+        },
+        {
+          "source_tag": "workato:custom_action",
+          "type": "custom_script",
+          "label": "[REVIEW REQUIRED] Combine into JSON array",
+          "config_ref": "workato",
+          "requires_review": true,
+          "workato_provider": "workato",
+          "workato_name": "custom_action",
+          "complexity": "low",
+          "sequence": 4
+        }
+      ],
+      "connections_used": [
+        "postgresql"
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      }
+    },
+    {
+      "name": "MIG_MS_GetCustomerById_Process",
+      "source_name": "MIG_MS_GetCustomerById_Process",
+      "recipe_id": 72857457,
+      "description": "Migrated from boomi by migration-agent. Source flow: MIG_MS_GetCustomerById_Process. Generated: 2026-05-20T21:05:33.834119Z",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "workato:callable_recipe",
+        "type": "http_listener",
+        "label": "WSS Listen GET /ws/simple/queryCustomerById",
+        "requires_review": false,
+        "workato_provider": "workato",
+        "workato_name": "callable_recipe",
+        "http_method": "GET",
+        "path": "/endpoint",
+        "has_request_body": false
+      },
+      "steps": [
+        {
+          "source_tag": "workato:callable_recipe_response",
+          "type": "return_response",
+          "label": "Build id param",
+          "config_ref": "workato",
+          "requires_review": false,
+          "workato_provider": "workato",
+          "workato_name": "callable_recipe_response",
+          "complexity": "low",
+          "sequence": 1,
+          "static_content": "",
+          "status_code": "200"
+        },
+        {
+          "source_tag": "postgresql:search_rows",
+          "type": "db_select",
+          "label": "Select rows",
+          "config_ref": "postgresql",
+          "requires_review": false,
+          "workato_provider": "postgresql",
+          "workato_name": "search_rows",
+          "complexity": "low",
+          "sequence": 2,
+          "table": "",
+          "has_parameters": false,
+          "workato_input": {},
+          "sql_operation": "SELECT"
+        },
+        {
+          "source_tag": "workato:custom_action",
+          "type": "custom_script",
+          "label": "[REVIEW REQUIRED] Handle not found",
+          "config_ref": "workato",
+          "requires_review": true,
+          "workato_provider": "workato",
+          "workato_name": "custom_action",
+          "complexity": "low",
+          "sequence": 3
+        },
+        {
+          "source_tag": "workato:custom_action",
+          "type": "custom_script",
+          "label": "[REVIEW REQUIRED] Map DB Row to API Response",
+          "config_ref": "workato",
+          "requires_review": true,
+          "workato_provider": "workato",
+          "workato_name": "custom_action",
+          "complexity": "low",
+          "sequence": 4
+        }
+      ],
+      "connections_used": [
+        "postgresql"
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      }
+    },
+    {
+      "name": "MIG_MS_CreateCustomer_Process",
+      "source_name": "MIG_MS_CreateCustomer_Process",
+      "recipe_id": 72857456,
+      "description": "Migrated from boomi by migration-agent. Source flow: MIG_MS_CreateCustomer_Process. Generated: 2026-05-20T21:05:33.239771Z",
+      "flow_type": "primary",
+      "trigger": {
+        "source_tag": "workato:callable_recipe",
+        "type": "http_listener",
+        "label": "WSS Listen POST /ws/simple/createCustomer",
+        "requires_review": false,
+        "workato_provider": "workato",
+        "workato_name": "callable_recipe",
+        "http_method": "GET",
+        "path": "/endpoint",
+        "has_request_body": false
+      },
+      "steps": [
+        {
+          "source_tag": "workato:custom_action",
+          "type": "custom_script",
+          "label": "[REVIEW REQUIRED] Map Request to DB Input",
+          "config_ref": "workato",
+          "requires_review": true,
+          "workato_provider": "workato",
+          "workato_name": "custom_action",
+          "complexity": "low",
+          "sequence": 1
+        },
+        {
+          "source_tag": "postgresql:insert_row",
+          "type": "db_insert",
+          "label": "Insert row",
+          "config_ref": "postgresql",
+          "requires_review": false,
+          "workato_provider": "postgresql",
+          "workato_name": "insert_row",
+          "complexity": "low",
+          "sequence": 2,
+          "table": "",
+          "has_parameters": false,
+          "workato_input": {},
+          "sql_operation": "INSERT"
+        },
+        {
+          "source_tag": "workato:callable_recipe_response",
+          "type": "return_response",
+          "label": "Success Response",
+          "config_ref": "workato",
+          "requires_review": false,
+          "workato_provider": "workato",
+          "workato_name": "callable_recipe_response",
+          "complexity": "low",
+          "sequence": 3,
+          "static_content": "",
+          "status_code": "200"
+        }
+      ],
+      "connections_used": [
+        "postgresql"
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      }
+    }
+  ],
+  "gaps": [
+    {
+      "flow": "MIG_MS_UpdateCustomer_Process",
+      "step_type": "custom_script",
+      "sequence": 1,
+      "label": "[REVIEW REQUIRED] Capture customer ID",
+      "note": "Manual review required"
+    },
+    {
+      "flow": "MIG_MS_UpdateCustomer_Process",
+      "step_type": "custom_script",
+      "sequence": 2,
+      "label": "[REVIEW REQUIRED] Build UpdateInput JSON",
+      "note": "Manual review required"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "step_type": "custom_script",
+      "sequence": 3,
+      "label": "[REVIEW REQUIRED] Map DB Row to API Response",
+      "note": "Manual review required"
+    },
+    {
+      "flow": "MIG_MS_GetCustomers_Process",
+      "step_type": "custom_script",
+      "sequence": 4,
+      "label": "[REVIEW REQUIRED] Combine into JSON array",
+      "note": "Manual review required"
+    },
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "step_type": "custom_script",
+      "sequence": 3,
+      "label": "[REVIEW REQUIRED] Handle not found",
+      "note": "Manual review required"
+    },
+    {
+      "flow": "MIG_MS_GetCustomerById_Process",
+      "step_type": "custom_script",
+      "sequence": 4,
+      "label": "[REVIEW REQUIRED] Map DB Row to API Response",
+      "note": "Manual review required"
+    },
+    {
+      "flow": "MIG_MS_CreateCustomer_Process",
+      "step_type": "custom_script",
+      "sequence": 1,
+      "label": "[REVIEW REQUIRED] Map Request to DB Input",
+      "note": "Manual review required"
+    }
+  ],
+  "migration_notes": ""
+}

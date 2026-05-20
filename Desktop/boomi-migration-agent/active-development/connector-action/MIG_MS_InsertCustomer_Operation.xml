@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bns:Component xmlns:bns="http://api.platform.boomi.com/"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               componentId="14744191-9b04-4638-b960-c566e4975290" name="MIG_MS_InsertCustomer_Operation"
+               type="connector-action" subType="officialboomi-X3979C-dbv2da-prod"
+               folderId="Rjo4NTYzMTMw">
+  <bns:encryptedValues/>
+  <bns:description>built with boomi-companion v1.0.0</bns:description><bns:object>
+    <Operation returnApplicationErrors="true" trackResponse="false">
+      <Archiving directory="" enabled="false"/>
+      <Configuration>
+        <GenericOperationConfig
+          customOperationType="CREATE"
+          objectTypeId="customers"
+          operationType="CREATE"
+          requestProfile="0d3cb3b4-a936-4048-b516-ce2750c2cd5c"
+          requestProfileType="json"
+          responseProfile="45112fb2-1bba-4b31-b8b9-43f4ef5027b3"
+          responseProfileType="json">
+          <field id="InsertionType" type="string" value="Standard Insert"/>
+          <field id="schemaName" type="string" value=""/>
+          <field id="query" type="string" value="INSERT INTO customers (first_name, last_name, email, phone, status) VALUES ($first_name, $last_name, $email, $phone, $status)"/>
+          <field id="joinTransaction" type="boolean" value="false"/>
+          <field id="CommitOption" type="string" value="Commit By Profile"/>
+          <field id="batchCount" type="integer"/>
+          <Options>
+            <QueryOptions>
+              <Fields>
+                <ConnectorObject name="customers">
+                  <FieldList>
+                    <ConnectorField filterable="true" name="first_name" selectable="true" selected="true" sortable="true"/>
+                    <ConnectorField filterable="true" name="last_name" selectable="true" selected="true" sortable="true"/>
+                    <ConnectorField filterable="true" name="email" selectable="true" selected="true" sortable="true"/>
+                    <ConnectorField filterable="true" name="phone" selectable="true" selected="true" sortable="true"/>
+                    <ConnectorField filterable="true" name="status" selectable="true" selected="true" sortable="true"/>
+                  </FieldList>
+                </ConnectorObject>
+              </Fields>
+              <Inputs/>
+            </QueryOptions>
+          </Options>
+        </GenericOperationConfig>
+      </Configuration>
+      <Tracking><TrackedFields/></Tracking>
+      <Caching/>
+    </Operation>
+  </bns:object>
+</bns:Component>

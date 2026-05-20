@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+      xmlns:db="http://www.mulesoft.org/schema/mule/db"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:email="http://www.mulesoft.org/schema/mule/email"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+        http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- Global Configurations -->
+    <salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config">
+        <salesforce:basic-connection username="${sf.username}" password="${sf.password}" securityToken="${sf.token}" url="https://login.salesforce.com/services/Soap/u/56.0"/>
+    </salesforce:sfdc-config>
+
+    <db:config name="MySQL_CRM_Config" doc:name="MySQL CRM DB Config">
+        <db:my-sql-connection host="${mysql.host}" port="3306" user="${mysql.user}" password="${mysql.password}" database="crm_db"/>
+    </db:config>
+
+    <email:smtp-config name="SMTP_Config" doc:name="SMTP Config">
+        <email:smtp-connection host="${smtp.host}" port="587" username="${smtp.user}" password="${smtp.password}">
+            <email:properties>
+                <email:property key="mail.smtp.starttls.enable" value="true"/>
+            </email:properties>
+        </email:smtp-connection>
+    </email:smtp-config>
+
+    <!-- Main sync flow: Runs daily at 2 AM -->
+    <flow name="sf-to-db-accounts-sync-flow" doc:name="Salesforce to DB Account Sync">
+        <scheduler doc:name="Daily 2AM Scheduler">
+            <scheduling-strategy>
+                <cron expression="0 0 2 * * ?" timeZone="America/New_York"/>
+            </scheduling-strategy>
+        </scheduler>
+        <logger level="INFO" message="Starting Salesforce account sync at #[now()]" doc:name="Log Start"/>
+        <set-variable variableName="syncStart" value="#[now()]" doc:name="Capture Sync Start Time"/>
+        <set-variable variableName="syncStats" value="#[{inserted: 0, updated: 0, failed: 0}]" doc:name="Init Stats"/>
+
+        <!-- Query Salesforce for accounts modified in last 24 hours -->
+        <salesforce:query config-ref="Salesforce_Config" doc:name="Query Modified Accounts">
+            <salesforce:salesforce-query>SELECT Id, Name, BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry, Phone, Website, Industry, AnnualRevenue, NumberOfEmployees, Type, OwnerId, LastModifiedDate FROM Account WHERE LastModifiedDate >= LAST_N_DAYS:1 ORDER BY LastModifiedDate ASC</salesforce:salesforce-query>
+        </salesforce:query>
+
+        <logger level="INFO" message="Found #[sizeOf(payload)] Salesforce accounts to sync" doc:name="Log Count"/>
+
+        <!-- Process each account in batches -->
+        <foreach batchSize="50" doc:name="Process Accounts in Batches">
+            <try doc:name="Try Account Sync">
+                <flow-ref name="upsert-account-to-db-sub-flow" doc:name="Upsert Account"/>
+                <error-handler>
+                    <on-error-continue type="DB:CONNECTIVITY">
+                        <logger level="ERROR" message="DB connectivity lost during sync. Halting batch." doc:name="Log DB Error"/>
+                        <raise-error type="APP:DB_UNAVAILABLE" description="Database unavailable during sync"/>
+                    </on-error-continue>
+                    <on-error-continue type="ANY">
+                        <logger level="WARN" message="Failed to sync account #[payload.Id]: #[error.description]" doc:name="Log Account Error"/>
+                        <set-variable variableName="syncStats"
+                            value="#[vars.syncStats ++ {failed: vars.syncStats.failed + 1}]"
+                            doc:name="Increment Failed Count"/>
+                    </on-error-continue>
+                </error-handler>
+            </try>
+        </foreach>
+
+        <!-- Send completion notification -->
+        <flow-ref name="send-sync-notification-sub-flow" doc:name="Send Notification"/>
+        <logger level="INFO" message="Sync complete. Inserted: #[vars.syncStats.inserted], Updated: #[vars.syncStats.updated], Failed: #[vars.syncStats.failed]" doc:name="Log Summary"/>
+
+        <error-handler>
+            <on-error-propagate type="APP:DB_UNAVAILABLE">
+                <flow-ref name="send-sync-error-notification-sub-flow" doc:name="Send Error Notification"/>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+
+    <!-- Sub-flow: Upsert a single Salesforce account into the local DB -->
+    <sub-flow name="upsert-account-to-db-sub-flow" doc:name="Upsert Account to DB">
+        <ee:transform doc:name="Map SF Account to DB Schema">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+    sf_id: payload.Id,
+    name: payload.Name,
+    billing_street: payload.BillingStreet,
+    billing_city: payload.BillingCity,
+    billing_state: payload.BillingState,
+    billing_zip: payload.BillingPostalCode,
+    billing_country: payload.BillingCountry default "US",
+    phone: payload.Phone,
+    website: payload.Website,
+    industry: payload.Industry,
+    annual_revenue: payload.AnnualRevenue as Number default 0,
+    employee_count: payload.NumberOfEmployees as Number default 0,
+    account_type: payload.Type,
+    sf_owner_id: payload.OwnerId,
+    sf_last_modified: payload.LastModifiedDate as DateTime
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <db:select config-ref="MySQL_CRM_Config" doc:name="Check Existing Account">
+            <db:sql>SELECT id FROM accounts WHERE sf_id = :sf_id</db:sql>
+            <db:input-parameters>#[{sf_id: payload.sf_id}]</db:input-parameters>
+        </db:select>
+        <choice doc:name="Insert or Update?">
+            <when expression="#[sizeOf(payload) == 0]">
+                <db:insert config-ref="MySQL_CRM_Config" doc:name="Insert New Account">
+                    <db:sql>INSERT INTO accounts (sf_id, name, billing_street, billing_city, billing_state, billing_zip, billing_country, phone, website, industry, annual_revenue, employee_count, account_type, sf_owner_id, sf_last_modified, synced_at) VALUES (:sf_id, :name, :billing_street, :billing_city, :billing_state, :billing_zip, :billing_country, :phone, :website, :industry, :annual_revenue, :employee_count, :account_type, :sf_owner_id, :sf_last_modified, NOW())</db:sql>
+                    <db:input-parameters>#[payload]</db:input-parameters>
+                </db:insert>
+                <set-variable variableName="syncStats"
+                    value="#[vars.syncStats ++ {inserted: vars.syncStats.inserted + 1}]"
+                    doc:name="Increment Insert Count"/>
+            </when>
+            <otherwise>
+                <db:update config-ref="MySQL_CRM_Config" doc:name="Update Existing Account">
+                    <db:sql>UPDATE accounts SET name=:name, billing_street=:billing_street, billing_city=:billing_city, billing_state=:billing_state, billing_zip=:billing_zip, billing_country=:billing_country, phone=:phone, website=:website, industry=:industry, annual_revenue=:annual_revenue, employee_count=:employee_count, account_type=:account_type, sf_owner_id=:sf_owner_id, sf_last_modified=:sf_last_modified, synced_at=NOW() WHERE sf_id=:sf_id</db:sql>
+                    <db:input-parameters>#[payload]</db:input-parameters>
+                </db:update>
+                <set-variable variableName="syncStats"
+                    value="#[vars.syncStats ++ {updated: vars.syncStats.updated + 1}]"
+                    doc:name="Increment Update Count"/>
+            </otherwise>
+        </choice>
+    </sub-flow>
+
+    <!-- Sub-flow: Email sync completion summary -->
+    <sub-flow name="send-sync-notification-sub-flow" doc:name="Send Sync Notification">
+        <email:send config-ref="SMTP_Config" doc:name="Send Summary Email">
+            <email:message>
+                <email:to-addresses>
+                    <email:to-address value="${notify.email}"/>
+                </email:to-addresses>
+                <email:subject>Salesforce Sync Complete - #[vars.syncStart as Date]</email:subject>
+                <email:body>
+                    <email:content><![CDATA[Salesforce Account Sync Summary
+Sync Date: #[vars.syncStart as Date]
+Inserted: #[vars.syncStats.inserted]
+Updated:  #[vars.syncStats.updated]
+Failed:   #[vars.syncStats.failed]]]></email:content>
+                </email:body>
+            </email:message>
+        </email:send>
+    </sub-flow>
+
+    <!-- Sub-flow: Email sync error alert -->
+    <sub-flow name="send-sync-error-notification-sub-flow" doc:name="Send Error Notification">
+        <email:send config-ref="SMTP_Config" doc:name="Send Error Email">
+            <email:message>
+                <email:to-addresses>
+                    <email:to-address value="${notify.email}"/>
+                </email:to-addresses>
+                <email:subject>ERROR: Salesforce Sync Failed - #[vars.syncStart as Date]</email:subject>
+                <email:body>
+                    <email:content><![CDATA[Salesforce Account Sync encountered a critical error and halted.
+Error: #[error.description]
+Please investigate immediately.]]></email:content>
+                </email:body>
+            </email:message>
+        </email:send>
+    </sub-flow>
+
+</mule>

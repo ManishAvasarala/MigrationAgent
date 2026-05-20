@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bns:Component xmlns:bns="http://api.platform.boomi.com/"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               componentId="ea8c30bb-aa6c-4d57-bc44-38c021317cb5" name="MIG_MS_CustomerDBRow_to_CustomerResponse_Map"
+               type="transform.map" folderId="Rjo4NTYzMTMw">
+  <bns:description>built with boomi-companion v1.0.0</bns:description><bns:object>
+    <Map fromProfile="13214f0b-8226-4fa1-8e06-787c8926d33d"
+         toProfile="c007e662-07a4-4103-96c4-4093a0ac578a">
+      <Mappings>
+        <Mapping fromKey="3" fromType="profile" toKey="3" toType="profile"/>
+        <Mapping fromKey="4" fromType="profile" toKey="4" toType="profile"/>
+        <Mapping fromKey="5" fromType="profile" toKey="5" toType="profile"/>
+        <Mapping fromKey="6" fromType="profile" toKey="6" toType="profile"/>
+        <Mapping fromKey="7" fromType="profile" toKey="7" toType="profile"/>
+        <Mapping fromKey="8" fromType="profile" toKey="8" toType="profile"/>
+        <Mapping fromKey="9" fromType="profile" toKey="9" toType="profile"/>
+        <Mapping fromKey="10" fromType="profile" toKey="10" toType="profile"/>
+      </Mappings>
+      <Functions/>
+      <Defaults/>
+      <DocumentCacheJoins/>
+    </Map>
+  </bns:object>
+</bns:Component>

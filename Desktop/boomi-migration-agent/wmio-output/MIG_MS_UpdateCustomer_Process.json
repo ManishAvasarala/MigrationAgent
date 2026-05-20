@@ -1,0 +1,74 @@
+{
+  "name": "MIG_MS_UpdateCustomer_Process",
+  "description": "Migrated from boomi. Generated 2026-05-20T20:29:40Z",
+  "nodes": [
+    {
+      "uid": "10cc2eb8822347f7",
+      "type": "trigger",
+      "name": "receive_http_request",
+      "label": "WSS Listen PUT /ws/simple/updateCustomer",
+      "configuration": {
+        "method": "PUT",
+        "path": "/customers",
+        "headers": {}
+      }
+    },
+    {
+      "uid": "d99d8d8c27b2464c",
+      "type": "action",
+      "name": "custom_action",
+      "label": "[REVIEW] Capture customer ID",
+      "configuration": {
+        "_note": "Not auto-mapped: set_variable"
+      }
+    },
+    {
+      "uid": "3ff83053c63f4d6e",
+      "type": "action",
+      "name": "custom_action",
+      "label": "Build UpdateInput JSON",
+      "configuration": {
+        "_note": "Implement in webMethods.io custom action editor"
+      }
+    },
+    {
+      "uid": "169ac49b52c746c5",
+      "type": "action",
+      "name": "update_row",
+      "label": "DB: Update Customer",
+      "configuration": {
+        "table": "customers",
+        "sql": "UPDATE customers SET first_name=$first_name, last_name=$last_name, email=$email, phone=$phone, status=$status, updated_at=NOW() WHERE id=$id",
+        "_note": "Configure database connection in webMethods.io connector"
+      }
+    },
+    {
+      "uid": "09405b5b052b4c72",
+      "type": "action",
+      "name": "set_variable",
+      "label": "Success Response",
+      "configuration": {
+        "content": "{\"status\": \"updated\"}",
+        "_note": "Configure response payload in webMethods.io"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "10cc2eb8822347f7",
+      "to": "d99d8d8c27b2464c"
+    },
+    {
+      "from": "d99d8d8c27b2464c",
+      "to": "3ff83053c63f4d6e"
+    },
+    {
+      "from": "3ff83053c63f4d6e",
+      "to": "169ac49b52c746c5"
+    },
+    {
+      "from": "169ac49b52c746c5",
+      "to": "09405b5b052b4c72"
+    }
+  ]
+}
