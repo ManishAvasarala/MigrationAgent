@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCA binding: Oracle AQ Adapter for inbound order queue -->
+<adapter-config name="OrderQueueService"
+                adapter="oracle.tip.adapter.aq.AQAdapter"
+                wsdlLocation="oramds:/apps/AIAMetaData/services/CustomerOrder.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata"
+                xmlns:jca="http://xmlns.oracle.com/pcbpel/wsdl/jca/">
+
+  <connection-factory location="eis/AQ/OrderQueueCF"
+                      UIConnectionName="OrderManagementAQ"
+                      jndiName="eis/AQ/OrderQueueCF"/>
+
+  <endpoint-activation portType="OrderPortType" operation="processOrder">
+    <activation-spec className="oracle.tip.adapter.aq.inbound.AQActivationSpec">
+      <property name="QueueName"             value="OE.ORDER_QUEUE"/>
+      <property name="SchemaName"            value="OE"/>
+      <property name="PayloadHeaderRequired" value="false"/>
+      <property name="consumer_name"         value="SOA_ORDER_CONSUMER"/>
+      <property name="DequeueTimeOut"        value="10"/>
+    </activation-spec>
+  </endpoint-activation>
+
+</adapter-config>

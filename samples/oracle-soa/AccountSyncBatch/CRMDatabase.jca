@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCA binding: Oracle DB Adapter — upserts account records into CRM schema -->
+<adapter-config name="CRMDatabase"
+                adapter="oracle.tip.adapter.db.OracleDBAdapter"
+                wsdlLocation="oramds:/apps/AIAMetaData/services/CRMAccount.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata">
+
+  <connection-factory location="eis/DB/CRMDS"
+                      UIConnectionName="CRMDatabase"
+                      jndiName="jdbc/CRMDataSource"/>
+
+  <interaction-spec className="oracle.tip.adapter.db.OracleDBInteractionSpec">
+    <property name="MethodName"    value="MergeIntoTable"/>
+    <property name="SchemaName"    value="CRM"/>
+    <property name="TableName"     value="CUSTOMER_ACCOUNTS"/>
+    <property name="KeyColumnName" value="EXTERNAL_ID"/>
+    <property name="GetActiveUnitOfWork" value="true"/>
+  </interaction-spec>
+
+</adapter-config>

@@ -622,11 +622,18 @@ class BpelParser:
                 pl_type = pl.get("partnerLinkType", "")
                 my_role = pl.get("myRole", "")
                 partner_role = pl.get("partnerRole", "")
+                # Case-insensitive adapter lookup — JCA stems are lowercased, BPEL names are not
+                adapter_info = (
+                    self.partner_link_types.get(name)
+                    or self.partner_link_types.get(name.lower())
+                    or self.partner_link_types.get(name.replace(" ", "_").lower())
+                    or {}
+                )
                 pl_map[name] = {
                     "partnerLinkType": pl_type,
                     "myRole": my_role,
                     "partnerRole": partner_role,
-                    "adapter_info": self.partner_link_types.get(name, {}),
+                    "adapter_info": adapter_info,
                 }
         return pl_map
 
@@ -1055,19 +1062,26 @@ def analyze_composite_dir(composite_dir: str, composite_name: str,
 
     composite_base = os.path.dirname(composite_xml)
 
-    # Build partner-link → adapter mapping from JCA files in the directory
+    # Build partner-link → adapter mapping from JCA files.
+    # Only populate pl_adapter_map here — connections are registered below from composite.xml
+    # so they get proper camel-cased names without duplicates.
+    _ADAPTER_SUFFIXES = ("_receive", "_produce", "_invoke", "_aq", "_jms",
+                         "_ftp", "_sftp", "_db", "_http", "_ws", "_b2b")
     pl_adapter_map: Dict[str, Dict] = {}
     jca_files = list(Path(composite_base).rglob("*.jca"))
     for jca_path in jca_files:
         jca_p = JcaParser(str(jca_path))
         adapter_info = jca_p.get_adapter_info()
-        # JCA filenames often match "<partnerLinkName>_receive.jca" or "<name>.jca"
-        jca_stem = jca_path.stem.lower().replace("_receive", "").replace("_produce", "").replace("_invoke", "")
-        pl_adapter_map[jca_stem] = adapter_info
-        # Also index by JNDI location if available
-        loc = adapter_info.get("connection_factory_location", "")
-        if loc:
-            connections[jca_stem] = _adapter_to_connection(adapter_info, jca_stem)
+        # Index by full stem (lowercase) and also by stripped stem (adapter suffix removed)
+        full_stem = jca_path.stem.lower()
+        stripped = full_stem
+        for suffix in _ADAPTER_SUFFIXES:
+            if stripped.endswith(suffix):
+                stripped = stripped[: -len(suffix)]
+                break
+        pl_adapter_map[full_stem] = adapter_info
+        if stripped != full_stem:
+            pl_adapter_map[stripped] = adapter_info
 
     # Build service connections from composite services
     for svc in services:

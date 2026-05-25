@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCA binding: JMS Adapter for error notification queue (outbound) -->
+<adapter-config name="ErrorNotificationQueue"
+                adapter="oracle.tip.adapter.jms.IJmsAdapter"
+                wsdlLocation="oramds:/apps/AIAMetaData/services/ErrorNotification.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata"
+                xmlns:jca="http://xmlns.oracle.com/pcbpel/wsdl/jca/">
+
+  <connection-factory location="jms/ErrorNotificationQueueCF"
+                      UIConnectionName="SOAErrorJMSQueue"
+                      jndiName="jms/ErrorNotificationConnectionFactory"/>
+
+  <interaction-spec className="oracle.tip.adapter.jms.outbound.JmsProduceInteractionSpec">
+    <property name="DestinationName"   value="jms/SOAErrorQueue"/>
+    <property name="DestinationType"   value="Queue"/>
+    <property name="DeliveryMode"      value="PERSISTENT"/>
+    <property name="TimeToLive"        value="0"/>
+  </interaction-spec>
+
+</adapter-config>

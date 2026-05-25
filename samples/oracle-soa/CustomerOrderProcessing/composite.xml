@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Oracle SCA composite: CustomerOrderProcessing
+     Triggered by Oracle AQ (Advanced Queue) when new orders arrive.
+     Validates inventory, checks credit, and dispatches to shipping.
+-->
+<composite xmlns="http://xmlns.oracle.com/sca/1.0"
+           xmlns:ui="http://jdev.oracle.com/soa/sca/ui"
+           name="CustomerOrderProcessing"
+           revision="2.1"
+           label="CustomerOrderProcessing"
+           mode="active"
+           state="on">
+
+  <!-- Inbound: Oracle AQ listener for new order messages -->
+  <service name="OrderQueueService" ui:wires="OrderProcessingBPEL/OrderQueueService">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/CustomerOrder.wsdl#wsdl.porttype(OrderPortType)"/>
+    <binding.jca config="OrderQueueService_aq.jca"/>
+  </service>
+
+  <!-- BPEL process component -->
+  <component name="OrderProcessingBPEL">
+    <implementation.bpel src="OrderProcessingBPEL.bpel"/>
+    <property name="bpel.config.transaction" type="xs:string" many="false">requiresNew</property>
+    <property name="bpel.config.completionPersistPolicy" type="xs:string">faulted</property>
+  </component>
+
+  <!-- Outbound: Oracle DB Adapter for inventory check -->
+  <reference name="InventoryDB" ui:wires="OrderProcessingBPEL/InventoryDB">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/InventoryService.wsdl#wsdl.porttype(InventoryPortType)"/>
+    <binding.jca config="InventoryDB.jca"/>
+  </reference>
+
+  <!-- Outbound: Oracle EBS Adapter for credit validation -->
+  <reference name="EBSCreditCheck" ui:wires="OrderProcessingBPEL/EBSCreditCheck">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/CreditService.wsdl#wsdl.porttype(CreditPortType)"/>
+    <binding.jca config="EBSCreditCheck.jca"/>
+  </reference>
+
+  <!-- Outbound: HTTP adapter for external shipping system -->
+  <reference name="ShippingService" ui:wires="OrderProcessingBPEL/ShippingService">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/ShippingService.wsdl#wsdl.porttype(ShippingPortType)"/>
+    <binding.ws port="http://shipping.internal:8080/ShippingService#wsdl.endpoint(ShippingService/ShippingPort)"/>
+  </reference>
+
+  <!-- Outbound: JMS for dead-letter / error notification -->
+  <reference name="ErrorNotificationQueue" ui:wires="OrderProcessingBPEL/ErrorNotificationQueue">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/ErrorNotification.wsdl#wsdl.porttype(ErrorNotificationPortType)"/>
+    <binding.jca config="ErrorNotificationQueue_jms.jca"/>
+  </reference>
+
+</composite>

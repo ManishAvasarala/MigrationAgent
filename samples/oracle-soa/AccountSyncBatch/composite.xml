@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Oracle SCA composite: AccountSyncBatch
+     Polls an SFTP landing zone for customer account CSV files,
+     enriches each record from Oracle EBS, and upserts to the CRM database.
+-->
+<composite xmlns="http://xmlns.oracle.com/sca/1.0"
+           xmlns:ui="http://jdev.oracle.com/soa/sca/ui"
+           name="AccountSyncBatch"
+           revision="1.3"
+           label="AccountSyncBatch"
+           mode="active"
+           state="on">
+
+  <!-- Inbound: FTP Adapter polls for CSV account files -->
+  <service name="AccountFileService" ui:wires="AccountSyncBPEL/AccountFileService">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/AccountFile.wsdl#wsdl.porttype(AccountFilePortType)"/>
+    <binding.jca config="AccountFileService_ftp.jca"/>
+  </service>
+
+  <!-- BPEL process component -->
+  <component name="AccountSyncBPEL">
+    <implementation.bpel src="AccountSyncBPEL.bpel"/>
+    <property name="bpel.config.transaction" type="xs:string">required</property>
+  </component>
+
+  <!-- Outbound: Oracle EBS Adapter to look up account master data -->
+  <reference name="EBSAccountLookup" ui:wires="AccountSyncBPEL/EBSAccountLookup">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/EBSAccount.wsdl#wsdl.porttype(EBSAccountPortType)"/>
+    <binding.jca config="EBSAccountLookup.jca"/>
+  </reference>
+
+  <!-- Outbound: DB Adapter to upsert accounts into CRM -->
+  <reference name="CRMDatabase" ui:wires="AccountSyncBPEL/CRMDatabase">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/CRMAccount.wsdl#wsdl.porttype(CRMAccountPortType)"/>
+    <binding.jca config="CRMDatabase.jca"/>
+  </reference>
+
+</composite>

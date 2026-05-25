@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCA binding: Oracle B2B Adapter for EDI trading partner notification -->
+<adapter-config name="EDIPartnerB2B"
+                adapter="oracle.tip.adapter.b2b.B2BAdapter"
+                wsdlLocation="oramds:/apps/AIAMetaData/services/EDIPartner.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata">
+
+  <connection-factory location="eis/B2B/TradingPartnerCF"
+                      UIConnectionName="EDITradingPartner"
+                      jndiName="eis/B2B/TradingPartnerConnectionFactory"/>
+
+  <interaction-spec className="oracle.tip.adapter.b2b.B2BInteractionSpec">
+    <property name="PartnerName"     value="ACME_CORP"/>
+    <property name="DocumentType"    value="850"/>
+    <property name="DocumentVersion" value="4010"/>
+    <property name="Direction"       value="OUTBOUND"/>
+  </interaction-spec>
+
+</adapter-config>

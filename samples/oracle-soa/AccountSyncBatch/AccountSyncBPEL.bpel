@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BPEL 2.0 Process: AccountSyncBPEL
+  Composite: AccountSyncBatch rev 1.3
+
+  Flow:
+    1. Receive CSV batch file from FTP adapter
+    2. Assign filename metadata to working variable
+    3. For each account record in the batch (forEach):
+       a. Assign record fields to request variable
+       b. Invoke EBS to look up canonical account ID
+       c. Assign EBS enrichment data to CRM upsert request
+       d. Invoke CRM DB adapter to upsert the account
+    4. Global fault handler catches DB errors and logs them
+-->
+<process xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:xp20="http://www.oracle.com/XSL/Transform/java/oracle.tip.pc.services.functions.Xpath20"
+         xmlns:tns="http://xmlns.oracle.com/AccountSyncBatch/AccountSyncBPEL"
+         xmlns:ns1="http://xmlns.oracle.com/services/AccountFile"
+         xmlns:ns2="http://xmlns.oracle.com/services/EBSAccount"
+         xmlns:ns3="http://xmlns.oracle.com/services/CRMAccount"
+         name="AccountSyncBPEL"
+         targetNamespace="http://xmlns.oracle.com/AccountSyncBatch/AccountSyncBPEL"
+         suppressJoinFailure="yes">
+
+  <partnerLinks>
+    <partnerLink name="AccountFileService"
+                 partnerLinkType="ns1:AccountFilePartnerLinkType"
+                 myRole="AccountFileServiceProvider"/>
+    <partnerLink name="EBSAccountLookup"
+                 partnerLinkType="ns2:EBSAccountPartnerLinkType"
+                 partnerRole="EBSAccountLookupProvider"/>
+    <partnerLink name="CRMDatabase"
+                 partnerLinkType="ns3:CRMAccountPartnerLinkType"
+                 partnerRole="CRMDatabaseProvider"/>
+  </partnerLinks>
+
+  <variables>
+    <variable name="AccountBatch"          messageType="ns1:AccountBatchMessage"/>
+    <variable name="SourceFileName"        type="xsd:string"/>
+    <variable name="RecordCount"           type="xsd:integer"/>
+    <variable name="CurrentRecord"         type="xsd:anyType"/>
+    <variable name="EBSLookupRequest"      messageType="ns2:EBSAccountLookupRequest"/>
+    <variable name="EBSLookupResponse"     messageType="ns2:EBSAccountLookupResponse"/>
+    <variable name="CRMUpsertRequest"      messageType="ns3:CRMAccountUpsertRequest"/>
+    <variable name="CRMUpsertResponse"     messageType="ns3:CRMAccountUpsertResponse"/>
+  </variables>
+
+  <faultHandlers>
+    <catch faultName="tns:DatabaseFault">
+      <sequence name="HandleDatabaseFault">
+        <assign name="LogDatabaseError">
+          <copy>
+            <from expression="'DatabaseFault occurred during AccountSyncBatch'"/>
+            <to variable="SourceFileName"/>
+          </copy>
+        </assign>
+      </sequence>
+    </catch>
+  </faultHandlers>
+
+  <sequence name="MainSequence">
+
+    <!-- Step 1: Pick up the CSV file from FTP landing zone -->
+    <receive name="ReceiveAccountFile"
+             partnerLink="AccountFileService"
+             operation="processAccountFile"
+             variable="AccountBatch"
+             createInstance="yes"/>
+
+    <!-- Step 2: Extract metadata -->
+    <assign name="ExtractFileMetadata">
+      <copy>
+        <from variable="AccountBatch" part="header" query="/fileHeader/fileName"/>
+        <to variable="SourceFileName"/>
+      </copy>
+      <copy>
+        <from variable="AccountBatch" part="header" query="/fileHeader/recordCount"/>
+        <to variable="RecordCount"/>
+      </copy>
+    </assign>
+
+    <!-- Step 3: Loop over each account record in the batch -->
+    <forEach name="ProcessEachAccount"
+             parallel="false"
+             counterName="recordIndex"
+             finalCounterValue="$RecordCount">
+      <startCounterValue>1</startCounterValue>
+
+      <scope name="ProcessSingleAccount">
+        <faultHandlers>
+          <catchAll>
+            <!-- Log per-record error but continue batch -->
+            <assign name="LogRecordError">
+              <copy>
+                <from expression="concat('Record failed: index=', $recordIndex)"/>
+                <to variable="SourceFileName"/>
+              </copy>
+            </assign>
+          </catchAll>
+        </faultHandlers>
+
+        <sequence name="SingleAccountSequence">
+
+          <!-- 3a: Extract current record fields -->
+          <assign name="ExtractRecordFields">
+            <copy>
+              <from variable="AccountBatch" part="payload"
+                    query="/accountBatch/accounts/account[$recordIndex]/externalId"/>
+              <to variable="EBSLookupRequest" part="payload" query="/ebsLookup/externalAccountId"/>
+            </copy>
+            <copy>
+              <from variable="AccountBatch" part="payload"
+                    query="/accountBatch/accounts/account[$recordIndex]/accountName"/>
+              <to variable="EBSLookupRequest" part="payload" query="/ebsLookup/accountName"/>
+            </copy>
+          </assign>
+
+          <!-- 3b: Enrich from Oracle EBS -->
+          <invoke name="LookupEBSAccount"
+                  partnerLink="EBSAccountLookup"
+                  operation="getAccountDetails"
+                  inputVariable="EBSLookupRequest"
+                  outputVariable="EBSLookupResponse"/>
+
+          <!-- 3c: Map EBS + CSV data into CRM upsert request -->
+          <assign name="BuildCRMUpsertRequest">
+            <copy>
+              <from variable="EBSLookupResponse" part="payload" query="/ebsAccount/ebsPartyId"/>
+              <to variable="CRMUpsertRequest" part="payload" query="/crmAccount/externalId"/>
+            </copy>
+            <copy>
+              <from variable="AccountBatch" part="payload"
+                    query="/accountBatch/accounts/account[$recordIndex]/accountName"/>
+              <to variable="CRMUpsertRequest" part="payload" query="/crmAccount/name"/>
+            </copy>
+            <copy>
+              <from variable="EBSLookupResponse" part="payload" query="/ebsAccount/accountClass"/>
+              <to variable="CRMUpsertRequest" part="payload" query="/crmAccount/accountType"/>
+            </copy>
+            <copy>
+              <from variable="AccountBatch" part="payload"
+                    query="/accountBatch/accounts/account[$recordIndex]/email"/>
+              <to variable="CRMUpsertRequest" part="payload" query="/crmAccount/primaryEmail"/>
+            </copy>
+            <copy>
+              <from expression="'ACTIVE'"/>
+              <to variable="CRMUpsertRequest" part="payload" query="/crmAccount/status"/>
+            </copy>
+          </assign>
+
+          <!-- 3d: Upsert into CRM database -->
+          <invoke name="UpsertCRMAccount"
+                  partnerLink="CRMDatabase"
+                  operation="upsertAccount"
+                  inputVariable="CRMUpsertRequest"
+                  outputVariable="CRMUpsertResponse"/>
+
+        </sequence>
+      </scope>
+    </forEach>
+
+  </sequence>
+
+</process>

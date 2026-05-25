@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCA binding: Oracle HTTP Adapter for external email REST service -->
+<adapter-config name="EmailService"
+                adapter="oracle.tip.adapter.http.HttpAdapter"
+                wsdlLocation="oramds:/apps/AIAMetaData/services/Email.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata">
+
+  <connection-factory location="eis/Http/EmailServiceCF"
+                      UIConnectionName="EmailRESTService"
+                      Endpoint="http://email-service.internal:8080/api/v1/send"/>
+
+  <interaction-spec className="oracle.tip.adapter.http.HttpInteractionSpec">
+    <property name="SerializationMethod" value="PAYLOAD"/>
+    <property name="Endpoint"            value="http://email-service.internal:8080/api/v1/send"/>
+    <property name="HttpMethod"          value="POST"/>
+    <property name="ContentType"         value="application/json"/>
+  </interaction-spec>
+
+</adapter-config>

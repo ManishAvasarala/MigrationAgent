@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCA binding: Oracle FTP Adapter — polls SFTP server for account CSV files -->
+<adapter-config name="AccountFileService"
+                adapter="oracle.tip.adapter.ftp.FTPAdapter"
+                wsdlLocation="oramds:/apps/AIAMetaData/services/AccountFile.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata">
+
+  <connection-factory location="eis/Ftp/AccountSFTP"
+                      UIConnectionName="AccountSFTPServer"
+                      jndiName="eis/Ftp/AccountSFTPConnectionFactory"/>
+
+  <endpoint-activation portType="AccountFilePortType" operation="processAccountFile">
+    <activation-spec className="oracle.tip.adapter.ftp.inbound.FTPActivationSpec">
+      <property name="PhysicalDirectory"    value="/data/inbound/accounts"/>
+      <property name="FileNamingConvention" value="accounts_*.csv"/>
+      <property name="PollingFrequency"     value="60"/>
+      <property name="MinimumAge"           value="0"/>
+      <property name="DeleteFile"           value="true"/>
+      <property name="Recursive"            value="false"/>
+    </activation-spec>
+  </endpoint-activation>
+
+</adapter-config>

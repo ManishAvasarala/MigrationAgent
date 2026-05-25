@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCA binding: Oracle E-Business Suite Adapter for credit validation API -->
+<adapter-config name="EBSCreditCheck"
+                adapter="oracle.tip.adapter.apps.AppsAdapter"
+                wsdlLocation="oramds:/apps/AIAMetaData/services/CreditService.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata"
+                xmlns:jca="http://xmlns.oracle.com/pcbpel/wsdl/jca/">
+
+  <connection-factory location="eis/Apps/EBSConnection"
+                      UIConnectionName="OracleEBSProduction"
+                      jndiName="eis/Apps/EBSConnectionFactory"/>
+
+  <interaction-spec className="oracle.tip.adapter.apps.AppsInteractionSpec">
+    <property name="FunctionName"     value="AR_CREDIT_MGMT_PUB.VALIDATE_CREDIT"/>
+    <property name="InterfaceName"    value="AR_CREDIT_MGMT_PUB"/>
+    <property name="InteractionSpec"  value="oracle.tip.adapter.apps.AppsInteractionSpec"/>
+    <property name="SchemaName"       value="APPS"/>
+    <property name="ResponsibilityKey" value="RECEIVABLES_MANAGER"/>
+  </interaction-spec>
+
+</adapter-config>

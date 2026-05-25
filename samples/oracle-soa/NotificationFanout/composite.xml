@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Oracle SCA composite: NotificationFanout
+     HTTP listener receives an event, then fans out notifications in PARALLEL
+     to three channels: email (HTTP), audit log (DB), and partner EDI (B2B).
+     This composite is designed to test gap detection for BPEL <flow> parallel execution.
+-->
+<composite xmlns="http://xmlns.oracle.com/sca/1.0"
+           xmlns:ui="http://jdev.oracle.com/soa/sca/ui"
+           name="NotificationFanout"
+           revision="1.0"
+           label="NotificationFanout"
+           mode="active"
+           state="on">
+
+  <!-- Inbound: HTTP/SOAP listener -->
+  <service name="NotificationEndpoint" ui:wires="NotificationFanoutBPEL/NotificationEndpoint">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/Notification.wsdl#wsdl.porttype(NotificationPortType)"/>
+    <binding.ws port="http://soa.internal:8001/soa-infra/services/default/NotificationFanout/NotificationEndpoint"/>
+  </service>
+
+  <!-- BPEL process -->
+  <component name="NotificationFanoutBPEL">
+    <implementation.bpel src="NotificationFanoutBPEL.bpel"/>
+  </component>
+
+  <!-- Outbound: HTTP adapter for email service -->
+  <reference name="EmailService" ui:wires="NotificationFanoutBPEL/EmailService">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/Email.wsdl#wsdl.porttype(EmailPortType)"/>
+    <binding.jca config="EmailService_http.jca"/>
+  </reference>
+
+  <!-- Outbound: DB adapter for audit log -->
+  <reference name="AuditLogDB" ui:wires="NotificationFanoutBPEL/AuditLogDB">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/AuditLog.wsdl#wsdl.porttype(AuditLogPortType)"/>
+    <binding.jca config="AuditLogDB.jca"/>
+  </reference>
+
+  <!-- Outbound: B2B adapter for EDI partner notification -->
+  <reference name="EDIPartnerB2B" ui:wires="NotificationFanoutBPEL/EDIPartnerB2B">
+    <interface.wsdl interface="oramds:/apps/AIAMetaData/services/EDIPartner.wsdl#wsdl.porttype(EDIPartnerPortType)"/>
+    <binding.jca config="EDIPartnerB2B.jca"/>
+  </reference>
+
+</composite>

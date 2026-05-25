@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BPEL 2.0 Process: NotificationFanoutBPEL
+  Composite: NotificationFanout rev 1.0
+
+  Flow:
+    1. Receive notification event via HTTP/SOAP
+    2. Assign event fields to variables
+    3. PARALLEL <flow> with three branches:
+         Branch A: Send email via HTTP adapter
+         Branch B: Write to audit DB
+         Branch C: Send EDI to B2B partner
+    4. Reply with acknowledgement
+
+  MIGRATION NOTE: The <flow> activity maps to Boomi Branch (sequential).
+  True parallel execution is NOT preserved — flag this as a medium severity gap.
+-->
+<process xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:tns="http://xmlns.oracle.com/NotificationFanout/NotificationFanoutBPEL"
+         xmlns:ns1="http://xmlns.oracle.com/services/Notification"
+         xmlns:ns2="http://xmlns.oracle.com/services/Email"
+         xmlns:ns3="http://xmlns.oracle.com/services/AuditLog"
+         xmlns:ns4="http://xmlns.oracle.com/services/EDIPartner"
+         name="NotificationFanoutBPEL"
+         targetNamespace="http://xmlns.oracle.com/NotificationFanout/NotificationFanoutBPEL"
+         suppressJoinFailure="yes">
+
+  <partnerLinks>
+    <partnerLink name="NotificationEndpoint"
+                 partnerLinkType="ns1:NotificationPartnerLinkType"
+                 myRole="NotificationServiceProvider"
+                 partnerRole="NotificationServiceRequester"/>
+    <partnerLink name="EmailService"
+                 partnerLinkType="ns2:EmailPartnerLinkType"
+                 partnerRole="EmailServiceProvider"/>
+    <partnerLink name="AuditLogDB"
+                 partnerLinkType="ns3:AuditLogPartnerLinkType"
+                 partnerRole="AuditLogDBProvider"/>
+    <partnerLink name="EDIPartnerB2B"
+                 partnerLinkType="ns4:EDIPartnerPartnerLinkType"
+                 partnerRole="EDIPartnerB2BProvider"/>
+  </partnerLinks>
+
+  <variables>
+    <variable name="NotificationInput"   messageType="ns1:NotificationRequest"/>
+    <variable name="NotificationReply"   messageType="ns1:NotificationResponse"/>
+    <variable name="EventId"             type="xsd:string"/>
+    <variable name="EventType"           type="xsd:string"/>
+    <variable name="RecipientEmail"      type="xsd:string"/>
+    <variable name="EmailRequest"        messageType="ns2:SendEmailRequest"/>
+    <variable name="AuditRequest"        messageType="ns3:AuditLogRequest"/>
+    <variable name="EDIRequest"          messageType="ns4:EDINotificationRequest"/>
+  </variables>
+
+  <sequence name="MainSequence">
+
+    <!-- Step 1: Receive HTTP notification request -->
+    <receive name="ReceiveNotification"
+             partnerLink="NotificationEndpoint"
+             operation="sendNotification"
+             variable="NotificationInput"
+             createInstance="yes"/>
+
+    <!-- Step 2: Extract event fields -->
+    <assign name="ExtractEventFields">
+      <copy>
+        <from variable="NotificationInput" part="payload" query="/notification/eventId"/>
+        <to variable="EventId"/>
+      </copy>
+      <copy>
+        <from variable="NotificationInput" part="payload" query="/notification/eventType"/>
+        <to variable="EventType"/>
+      </copy>
+      <copy>
+        <from variable="NotificationInput" part="payload" query="/notification/recipientEmail"/>
+        <to variable="RecipientEmail"/>
+      </copy>
+    </assign>
+
+    <!-- Step 3: Fan out in PARALLEL to three channels
+         *** MIGRATION GAP: BPEL <flow> = parallel execution ***
+         *** Boomi Branch executes sequentially — parallelism not preserved ***
+    -->
+    <flow name="ParallelNotificationFanout">
+
+      <!-- Branch A: Email notification via HTTP adapter -->
+      <sequence name="EmailBranch">
+        <assign name="PrepareEmailRequest">
+          <copy>
+            <from variable="RecipientEmail"/>
+            <to variable="EmailRequest" part="payload" query="/sendEmail/to"/>
+          </copy>
+          <copy>
+            <from variable="EventType"/>
+            <to variable="EmailRequest" part="payload" query="/sendEmail/subject"/>
+          </copy>
+          <copy>
+            <from variable="EventId"/>
+            <to variable="EmailRequest" part="payload" query="/sendEmail/body/eventId"/>
+          </copy>
+        </assign>
+        <invoke name="SendEmail"
+                partnerLink="EmailService"
+                operation="sendEmail"
+                inputVariable="EmailRequest"/>
+      </sequence>
+
+      <!-- Branch B: Audit log to database -->
+      <sequence name="AuditBranch">
+        <assign name="PrepareAuditRequest">
+          <copy>
+            <from variable="EventId"/>
+            <to variable="AuditRequest" part="payload" query="/auditLog/eventId"/>
+          </copy>
+          <copy>
+            <from variable="EventType"/>
+            <to variable="AuditRequest" part="payload" query="/auditLog/eventType"/>
+          </copy>
+          <copy>
+            <from expression="xp20:current-dateTime()"/>
+            <to variable="AuditRequest" part="payload" query="/auditLog/timestamp"/>
+          </copy>
+        </assign>
+        <invoke name="WriteAuditLog"
+                partnerLink="AuditLogDB"
+                operation="insertAuditRecord"
+                inputVariable="AuditRequest"/>
+      </sequence>
+
+      <!-- Branch C: EDI notification to trading partner via Oracle B2B -->
+      <sequence name="EDIBranch">
+        <assign name="PrepareEDIRequest">
+          <copy>
+            <from variable="EventId"/>
+            <to variable="EDIRequest" part="payload" query="/ediNotification/transactionId"/>
+          </copy>
+          <copy>
+            <from variable="EventType"/>
+            <to variable="EDIRequest" part="payload" query="/ediNotification/documentType"/>
+          </copy>
+        </assign>
+        <invoke name="SendEDIToPartner"
+                partnerLink="EDIPartnerB2B"
+                operation="sendEDIDocument"
+                inputVariable="EDIRequest"/>
+      </sequence>
+
+    </flow>
+    <!-- End of parallel <flow> -->
+
+    <!-- Step 4: Reply with acknowledgement -->
+    <assign name="BuildReply">
+      <copy>
+        <from expression="'ACCEPTED'"/>
+        <to variable="NotificationReply" part="payload" query="/notificationResponse/status"/>
+      </copy>
+      <copy>
+        <from variable="EventId"/>
+        <to variable="NotificationReply" part="payload" query="/notificationResponse/eventId"/>
+      </copy>
+    </assign>
+
+    <reply name="SendReply"
+           partnerLink="NotificationEndpoint"
+           operation="sendNotification"
+           variable="NotificationReply"/>
+
+  </sequence>
+
+</process>

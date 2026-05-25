@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BPEL 2.0 Process: OrderProcessingBPEL
+  Composite: CustomerOrderProcessing rev 2.1
+
+  Flow:
+    1. Receive new order from AQ
+    2. Assign / extract order fields to working variables
+    3. Check inventory via DB adapter
+    4. Validate customer credit via Oracle EBS adapter
+    5. If inventory OK AND credit approved:
+         - Prepare shipping request
+         - Invoke external shipping HTTP service
+    6. Else: publish to error notification queue
+    7. Fault handling scope wraps the core logic
+-->
+<process xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:xp20="http://www.oracle.com/XSL/Transform/java/oracle.tip.pc.services.functions.Xpath20"
+         xmlns:ora="http://schemas.oracle.com/xpath/extension"
+         xmlns:tns="http://xmlns.oracle.com/CustomerOrderProcessing/OrderProcessingBPEL"
+         xmlns:ns1="http://xmlns.oracle.com/services/CustomerOrder"
+         xmlns:ns2="http://xmlns.oracle.com/services/Inventory"
+         xmlns:ns3="http://xmlns.oracle.com/services/Credit"
+         xmlns:ns4="http://xmlns.oracle.com/services/Shipping"
+         name="OrderProcessingBPEL"
+         targetNamespace="http://xmlns.oracle.com/CustomerOrderProcessing/OrderProcessingBPEL"
+         suppressJoinFailure="yes">
+
+  <import namespace="http://xmlns.oracle.com/services/CustomerOrder"
+          location="CustomerOrder.wsdl" importType="http://schemas.xmlsoap.org/wsdl/"/>
+
+  <partnerLinks>
+    <partnerLink name="OrderQueueService"
+                 partnerLinkType="ns1:OrderPartnerLinkType"
+                 myRole="OrderServiceProvider"/>
+    <partnerLink name="InventoryDB"
+                 partnerLinkType="ns2:InventoryPartnerLinkType"
+                 partnerRole="InventoryDBProvider"/>
+    <partnerLink name="EBSCreditCheck"
+                 partnerLinkType="ns3:CreditPartnerLinkType"
+                 partnerRole="EBSCreditCheckProvider"/>
+    <partnerLink name="ShippingService"
+                 partnerLinkType="ns4:ShippingPartnerLinkType"
+                 partnerRole="ShippingServiceProvider"/>
+    <partnerLink name="ErrorNotificationQueue"
+                 partnerLinkType="ns1:ErrorNotificationPartnerLinkType"
+                 partnerRole="ErrorNotificationProvider"/>
+  </partnerLinks>
+
+  <variables>
+    <variable name="InputOrder"            messageType="ns1:OrderMessage"/>
+    <variable name="OrderId"               type="xsd:string"/>
+    <variable name="CustomerId"            type="xsd:string"/>
+    <variable name="ProductId"             type="xsd:string"/>
+    <variable name="Quantity"              type="xsd:integer"/>
+    <variable name="InventoryRequest"      messageType="ns2:InventoryCheckRequest"/>
+    <variable name="InventoryResponse"     messageType="ns2:InventoryCheckResponse"/>
+    <variable name="CreditRequest"         messageType="ns3:CreditValidationRequest"/>
+    <variable name="CreditResponse"        messageType="ns3:CreditValidationResponse"/>
+    <variable name="ShippingRequest"       messageType="ns4:CreateShipmentRequest"/>
+    <variable name="ShippingResponse"      messageType="ns4:CreateShipmentResponse"/>
+    <variable name="ErrorPayload"          messageType="ns1:ErrorNotificationMessage"/>
+  </variables>
+
+  <faultHandlers>
+    <catch faultName="tns:OrderProcessingFault">
+      <sequence name="HandleOrderFault">
+        <assign name="BuildErrorPayload">
+          <copy>
+            <from expression="'OrderProcessingFault'"/>
+            <to variable="ErrorPayload" part="payload" query="/error/type"/>
+          </copy>
+          <copy>
+            <from variable="InputOrder" part="payload" query="/order/orderId"/>
+            <to variable="ErrorPayload" part="payload" query="/error/orderId"/>
+          </copy>
+        </assign>
+        <invoke name="PublishToErrorQueue"
+                partnerLink="ErrorNotificationQueue"
+                operation="publishError"
+                inputVariable="ErrorPayload"/>
+      </sequence>
+    </catch>
+    <catchAll>
+      <sequence name="HandleUnexpectedFault">
+        <assign name="BuildGenericError">
+          <copy>
+            <from expression="'UnexpectedFault'"/>
+            <to variable="ErrorPayload" part="payload" query="/error/type"/>
+          </copy>
+        </assign>
+        <invoke name="PublishGenericError"
+                partnerLink="ErrorNotificationQueue"
+                operation="publishError"
+                inputVariable="ErrorPayload"/>
+      </sequence>
+    </catchAll>
+  </faultHandlers>
+
+  <sequence name="MainSequence">
+
+    <!-- Step 1: Receive the inbound order from Oracle AQ -->
+    <receive name="ReceiveOrder"
+             partnerLink="OrderQueueService"
+             operation="processOrder"
+             variable="InputOrder"
+             createInstance="yes"/>
+
+    <!-- Step 2: Extract order fields into working variables -->
+    <assign name="ExtractOrderFields">
+      <copy>
+        <from variable="InputOrder" part="payload" query="/order/orderId"/>
+        <to variable="OrderId"/>
+      </copy>
+      <copy>
+        <from variable="InputOrder" part="payload" query="/order/customerId"/>
+        <to variable="CustomerId"/>
+      </copy>
+      <copy>
+        <from variable="InputOrder" part="payload" query="/order/lineItems/lineItem[1]/productId"/>
+        <to variable="ProductId"/>
+      </copy>
+      <copy>
+        <from variable="InputOrder" part="payload" query="/order/lineItems/lineItem[1]/quantity"/>
+        <to variable="Quantity"/>
+      </copy>
+    </assign>
+
+    <!-- Step 3: Prepare and execute inventory check via DB Adapter -->
+    <assign name="PrepareInventoryRequest">
+      <copy>
+        <from variable="ProductId"/>
+        <to variable="InventoryRequest" part="payload" query="/inventoryCheck/productId"/>
+      </copy>
+      <copy>
+        <from variable="Quantity"/>
+        <to variable="InventoryRequest" part="payload" query="/inventoryCheck/requiredQty"/>
+      </copy>
+    </assign>
+
+    <invoke name="CheckInventory"
+            partnerLink="InventoryDB"
+            operation="checkAvailableStock"
+            inputVariable="InventoryRequest"
+            outputVariable="InventoryResponse"/>
+
+    <!-- Step 4: Prepare and execute EBS credit check -->
+    <assign name="PrepareCreditRequest">
+      <copy>
+        <from variable="CustomerId"/>
+        <to variable="CreditRequest" part="payload" query="/creditValidation/customerId"/>
+      </copy>
+      <copy>
+        <from variable="InputOrder" part="payload" query="/order/totalAmount"/>
+        <to variable="CreditRequest" part="payload" query="/creditValidation/orderAmount"/>
+      </copy>
+    </assign>
+
+    <invoke name="ValidateCredit"
+            partnerLink="EBSCreditCheck"
+            operation="validateCustomerCredit"
+            inputVariable="CreditRequest"
+            outputVariable="CreditResponse"/>
+
+    <!-- Step 5: Route based on inventory + credit result -->
+    <if name="CheckApprovalConditions">
+      <condition>$InventoryResponse.payload/availableQty >= $Quantity and $CreditResponse.payload/approved = 'Y'</condition>
+
+      <!-- Happy path: both checks passed -->
+      <sequence name="ProcessApprovedOrder">
+        <assign name="PrepareShippingRequest">
+          <copy>
+            <from variable="OrderId"/>
+            <to variable="ShippingRequest" part="payload" query="/createShipment/orderId"/>
+          </copy>
+          <copy>
+            <from variable="CustomerId"/>
+            <to variable="ShippingRequest" part="payload" query="/createShipment/customerId"/>
+          </copy>
+          <copy>
+            <from variable="InputOrder" part="payload" query="/order/deliveryAddress"/>
+            <to variable="ShippingRequest" part="payload" query="/createShipment/deliveryAddress"/>
+          </copy>
+          <copy>
+            <from expression="'STANDARD'"/>
+            <to variable="ShippingRequest" part="payload" query="/createShipment/shippingMethod"/>
+          </copy>
+        </assign>
+
+        <invoke name="CreateShipment"
+                partnerLink="ShippingService"
+                operation="createShipment"
+                inputVariable="ShippingRequest"
+                outputVariable="ShippingResponse"/>
+      </sequence>
+
+      <!-- No inventory or credit rejected -->
+      <else>
+        <sequence name="HandleRejectedOrder">
+          <assign name="PrepareRejectionError">
+            <copy>
+              <from expression="'OrderRejected'"/>
+              <to variable="ErrorPayload" part="payload" query="/error/type"/>
+            </copy>
+            <copy>
+              <from variable="OrderId"/>
+              <to variable="ErrorPayload" part="payload" query="/error/orderId"/>
+            </copy>
+          </assign>
+          <throw name="ThrowRejectionFault" faultName="tns:OrderProcessingFault"/>
+        </sequence>
+      </else>
+    </if>
+
+  </sequence>
+
+</process>

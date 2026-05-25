@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCA binding: Oracle EBS Adapter — calls HZ_PARTY_V2PUB to look up account master -->
+<adapter-config name="EBSAccountLookup"
+                adapter="oracle.tip.adapter.apps.AppsAdapter"
+                wsdlLocation="oramds:/apps/AIAMetaData/services/EBSAccount.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata">
+
+  <connection-factory location="eis/Apps/EBSConnection"
+                      UIConnectionName="OracleEBSProduction"
+                      jndiName="eis/Apps/EBSConnectionFactory"/>
+
+  <interaction-spec className="oracle.tip.adapter.apps.AppsInteractionSpec">
+    <property name="FunctionName"      value="HZ_PARTY_V2PUB.GET_PARTY_DETAIL"/>
+    <property name="InterfaceName"     value="HZ_PARTY_V2PUB"/>
+    <property name="SchemaName"        value="APPS"/>
+    <property name="ResponsibilityKey" value="TRADING_COMMUNITY"/>
+    <property name="NLSLanguage"       value="AMERICAN"/>
+  </interaction-spec>
+
+</adapter-config>

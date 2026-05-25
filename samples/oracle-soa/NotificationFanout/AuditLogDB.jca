@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCA binding: Oracle DB Adapter for audit log INSERT -->
+<adapter-config name="AuditLogDB"
+                adapter="oracle.tip.adapter.db.OracleDBAdapter"
+                wsdlLocation="oramds:/apps/AIAMetaData/services/AuditLog.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata">
+
+  <connection-factory location="eis/DB/AuditDS"
+                      UIConnectionName="AuditDatabase"
+                      jndiName="jdbc/AuditDataSource"/>
+
+  <interaction-spec className="oracle.tip.adapter.db.OracleDBInteractionSpec">
+    <property name="MethodName"  value="InsertIntoTable"/>
+    <property name="SchemaName"  value="AUDIT"/>
+    <property name="TableName"   value="EVENT_LOG"/>
+  </interaction-spec>
+
+</adapter-config>

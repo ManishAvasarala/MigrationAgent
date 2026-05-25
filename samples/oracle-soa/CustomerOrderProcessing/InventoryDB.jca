@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCA binding: Oracle DB Adapter for inventory check stored procedure -->
+<adapter-config name="InventoryDB"
+                adapter="oracle.tip.adapter.db.OracleDBAdapter"
+                wsdlLocation="oramds:/apps/AIAMetaData/services/InventoryService.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata"
+                xmlns:jca="http://xmlns.oracle.com/pcbpel/wsdl/jca/">
+
+  <connection-factory location="eis/DB/InventoryDS"
+                      UIConnectionName="InventoryDatabase"
+                      jndiName="jdbc/InventoryDataSource"/>
+
+  <interaction-spec className="oracle.tip.adapter.db.OracleDBInteractionSpec">
+    <property name="MethodName"   value="StoredProcedure"/>
+    <property name="SchemaName"   value="INVENTORY"/>
+    <property name="ProcedureName" value="CHECK_AVAILABLE_STOCK"/>
+    <property name="GetActiveUnitOfWork" value="false"/>
+  </interaction-spec>
+
+</adapter-config>
