@@ -1148,7 +1148,9 @@ class BoomiFlowGenerator:
         # DB connection + operations
         if db_conn_id:
             jdbc_url  = self._infer_jdbc()
-            conn_name = f"MIG_{self.prefix}_DB_Connection"
+            # Avoid double MIG_ prefix if self.prefix already starts with MIG_
+            clean_prefix = re.sub(r'^MIG_', '', self.prefix, flags=re.IGNORECASE)
+            conn_name = f"MIG_{clean_prefix}_DB_Connection"
             components.append((
                 "connector-settings", conn_name,
                 gen_db_connection(db_conn_id, conn_name, self.folder_id, jdbc_url)

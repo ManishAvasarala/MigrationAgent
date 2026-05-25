@@ -1,0 +1,271 @@
+{
+  "project": "oracle_soa_test",
+  "source_system": "oracle_soa",
+  "generated_at": "2026-05-25T18:07:26.470470+00:00",
+  "strict_mode": false,
+  "preservation_score": 80.0,
+  "grade": "C",
+  "summary": {
+    "total_source_steps": 12,
+    "fully_preserved": 10,
+    "partially_preserved": 2,
+    "needs_human_review": 0,
+    "blocked": 0,
+    "total_gaps": 1,
+    "connections_needing_setup": 0
+  },
+  "score_breakdown": {
+    "base_score": 100.0,
+    "total_deducted": 20.0,
+    "deductions": [
+      {
+        "flow": "OrderProcessingBPEL",
+        "step": "ValidateCredit",
+        "severity": "high",
+        "points_deducted": 10.0,
+        "reason": "Oracle EBS Adapter call — check native connector in Boomi account"
+      },
+      {
+        "flow": "NotificationFanoutBPEL",
+        "step": "ParallelNotificationFanout",
+        "severity": "high",
+        "points_deducted": 10.0,
+        "reason": "Parallel execution changed to sequential — throughput impact"
+      }
+    ]
+  },
+  "flows": [
+    {
+      "name": "AccountSyncBPEL",
+      "steps": 2,
+      "fully_preserved": 2,
+      "partially_preserved": 0,
+      "needs_human": 0,
+      "blocked": 0,
+      "flow_preservation_score": 100.0
+    },
+    {
+      "name": "OrderProcessingBPEL",
+      "steps": 6,
+      "fully_preserved": 5,
+      "partially_preserved": 1,
+      "needs_human": 0,
+      "blocked": 0,
+      "flow_preservation_score": 83.3
+    },
+    {
+      "name": "NotificationFanoutBPEL",
+      "steps": 4,
+      "fully_preserved": 3,
+      "partially_preserved": 1,
+      "needs_human": 0,
+      "blocked": 0,
+      "flow_preservation_score": 75.0
+    }
+  ],
+  "connection_issues": [],
+  "human_review_checklist": [
+    {
+      "priority": "MEDIUM",
+      "flow": "OrderProcessingBPEL",
+      "step": "ValidateCredit",
+      "source_ref": "OrderProcessingBPEL:step-6",
+      "action_required": "Verify Boomi equivalent implements identical behavior; test with real integration data",
+      "boomi_shape": "REST_Connector_or_Oracle_EBS_Connector",
+      "decision_question": "",
+      "suggested_implementation": ""
+    },
+    {
+      "priority": "MEDIUM",
+      "flow": "NotificationFanoutBPEL",
+      "step": "ParallelNotificationFanout",
+      "source_ref": "NotificationFanoutBPEL:step-3",
+      "action_required": "Replace parallel scatter-gather with sequential Boomi Branch; verify order-independence of routes",
+      "boomi_shape": "Branch",
+      "decision_question": "",
+      "suggested_implementation": ""
+    }
+  ],
+  "step_reports": [
+    {
+      "flow": "AccountSyncBPEL",
+      "source_ref": "AccountSyncBPEL:step-2",
+      "label": "ExtractFileMetadata",
+      "type": "transform",
+      "depth": 0,
+      "status": "fully_preserved",
+      "severity": "medium",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    },
+    {
+      "flow": "AccountSyncBPEL",
+      "source_ref": "AccountSyncBPEL:step-3",
+      "label": "ProcessEachAccount",
+      "type": "foreach",
+      "depth": 0,
+      "status": "fully_preserved",
+      "severity": "medium",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    },
+    {
+      "flow": "OrderProcessingBPEL",
+      "source_ref": "OrderProcessingBPEL:step-2",
+      "label": "ExtractOrderFields",
+      "type": "transform",
+      "depth": 0,
+      "status": "fully_preserved",
+      "severity": "medium",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    },
+    {
+      "flow": "OrderProcessingBPEL",
+      "source_ref": "OrderProcessingBPEL:step-3",
+      "label": "PrepareInventoryRequest",
+      "type": "transform",
+      "depth": 0,
+      "status": "fully_preserved",
+      "severity": "medium",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    },
+    {
+      "flow": "OrderProcessingBPEL",
+      "source_ref": "OrderProcessingBPEL:step-4",
+      "label": "CheckInventory",
+      "type": "db_select",
+      "depth": 0,
+      "status": "fully_preserved",
+      "severity": "low",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    },
+    {
+      "flow": "OrderProcessingBPEL",
+      "source_ref": "OrderProcessingBPEL:step-5",
+      "label": "PrepareCreditRequest",
+      "type": "transform",
+      "depth": 0,
+      "status": "fully_preserved",
+      "severity": "medium",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    },
+    {
+      "flow": "OrderProcessingBPEL",
+      "source_ref": "OrderProcessingBPEL:step-6",
+      "label": "ValidateCredit",
+      "type": "oracle_ebs_api",
+      "depth": 0,
+      "status": "partially_preserved",
+      "severity": "high",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    },
+    {
+      "flow": "OrderProcessingBPEL",
+      "source_ref": "OrderProcessingBPEL:step-7",
+      "label": "CheckApprovalConditions",
+      "type": "choice_router",
+      "depth": 0,
+      "status": "fully_preserved",
+      "severity": "low",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    },
+    {
+      "flow": "NotificationFanoutBPEL",
+      "source_ref": "NotificationFanoutBPEL:step-2",
+      "label": "ExtractEventFields",
+      "type": "transform",
+      "depth": 0,
+      "status": "fully_preserved",
+      "severity": "medium",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    },
+    {
+      "flow": "NotificationFanoutBPEL",
+      "source_ref": "NotificationFanoutBPEL:step-3",
+      "label": "ParallelNotificationFanout",
+      "type": "scatter_gather",
+      "depth": 0,
+      "status": "partially_preserved",
+      "severity": "high",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    },
+    {
+      "flow": "NotificationFanoutBPEL",
+      "source_ref": "NotificationFanoutBPEL:step-10",
+      "label": "BuildReply",
+      "type": "transform",
+      "depth": 0,
+      "status": "fully_preserved",
+      "severity": "medium",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    },
+    {
+      "flow": "NotificationFanoutBPEL",
+      "source_ref": "NotificationFanoutBPEL:step-11",
+      "label": "SendReply",
+      "type": "bpel_reply",
+      "depth": 0,
+      "status": "fully_preserved",
+      "severity": "low",
+      "enriched": false,
+      "has_field_mappings": false,
+      "has_groovy_equivalent": false,
+      "has_behavioral_notes": false,
+      "decision_required": false,
+      "auto_resolved": false
+    }
+  ]
+}

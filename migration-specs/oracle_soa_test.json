@@ -1,0 +1,584 @@
+{
+  "schema_version": "1.0",
+  "source_system": "oracle_soa",
+  "source_version": "12c",
+  "analyzed_at": "2026-05-25T18:02:07.877414+00:00",
+  "project_name": "oracle_soa_test",
+  "connections": {
+    "AccountFileService": {
+      "type": "sftp",
+      "boomi_equivalent": "diskv2_connection",
+      "adapter_class": "oracle.tip.adapter.ftp.FTPAdapter",
+      "notes": "JCA adapter 'AccountFileService'. Configure credentials in Boomi environment extensions.",
+      "location": "eis/Ftp/AccountSFTP",
+      "jndiName": "eis/Ftp/AccountSFTPConnectionFactory",
+      "driver": "ftp"
+    },
+    "EBSAccountLookup": {
+      "type": "oracle_ebs",
+      "boomi_equivalent": "oracle_ebs_connection",
+      "adapter_class": "oracle.tip.adapter.apps.AppsAdapter",
+      "notes": "JCA adapter 'EBSAccountLookup'. Configure credentials in Boomi environment extensions.",
+      "location": "eis/Apps/EBSConnection",
+      "jndiName": "eis/Apps/EBSConnectionFactory",
+      "driver": "ebs"
+    },
+    "CRMDatabase": {
+      "type": "db",
+      "boomi_equivalent": "databasev2_connection",
+      "adapter_class": "oracle.tip.adapter.db.OracleDBAdapter",
+      "notes": "JCA adapter 'CRMDatabase'. Configure credentials in Boomi environment extensions.",
+      "location": "eis/DB/CRMDS",
+      "jndiName": "jdbc/CRMDataSource",
+      "driver": "oracle"
+    },
+    "OrderQueueService": {
+      "type": "oracle_aq",
+      "boomi_equivalent": "event_streams_connection",
+      "adapter_class": "oracle.tip.adapter.aq.AQAdapter",
+      "notes": "JCA adapter 'OrderQueueService'. Configure credentials in Boomi environment extensions.",
+      "location": "eis/AQ/OrderQueueCF",
+      "jndiName": "eis/AQ/OrderQueueCF",
+      "driver": "aq"
+    },
+    "InventoryDB": {
+      "type": "db",
+      "boomi_equivalent": "databasev2_connection",
+      "adapter_class": "oracle.tip.adapter.db.OracleDBAdapter",
+      "notes": "JCA adapter 'InventoryDB'. Configure credentials in Boomi environment extensions.",
+      "location": "eis/DB/InventoryDS",
+      "jndiName": "jdbc/InventoryDataSource",
+      "driver": "oracle"
+    },
+    "EBSCreditCheck": {
+      "type": "oracle_ebs",
+      "boomi_equivalent": "oracle_ebs_connection",
+      "adapter_class": "oracle.tip.adapter.apps.AppsAdapter",
+      "notes": "JCA adapter 'EBSCreditCheck'. Configure credentials in Boomi environment extensions.",
+      "location": "eis/Apps/EBSConnection",
+      "jndiName": "eis/Apps/EBSConnectionFactory",
+      "driver": "ebs"
+    },
+    "ShippingService": {
+      "type": "http_request",
+      "wsdl": "http://shipping.internal:8080/ShippingService#wsdl.endpoint(ShippingService/ShippingPort)",
+      "boomi_equivalent": "rest_connection",
+      "notes": "Web service reference 'ShippingService'. Migrate to REST connector."
+    },
+    "ErrorNotificationQueue": {
+      "type": "jms",
+      "boomi_equivalent": "event_streams_connection",
+      "adapter_class": "oracle.tip.adapter.jms.IJmsAdapter",
+      "notes": "JCA adapter 'ErrorNotificationQueue'. Configure credentials in Boomi environment extensions.",
+      "location": "jms/ErrorNotificationQueueCF",
+      "jndiName": "jms/ErrorNotificationConnectionFactory",
+      "driver": "jms"
+    },
+    "EmailService": {
+      "type": "http_request",
+      "boomi_equivalent": "rest_connection",
+      "adapter_class": "oracle.tip.adapter.http.HttpAdapter",
+      "notes": "JCA adapter 'EmailService'. Configure credentials in Boomi environment extensions.",
+      "location": "eis/Http/EmailServiceCF",
+      "Endpoint": "http://email-service.internal:8080/api/v1/send",
+      "driver": "http"
+    },
+    "AuditLogDB": {
+      "type": "db",
+      "boomi_equivalent": "databasev2_connection",
+      "adapter_class": "oracle.tip.adapter.db.OracleDBAdapter",
+      "notes": "JCA adapter 'AuditLogDB'. Configure credentials in Boomi environment extensions.",
+      "location": "eis/DB/AuditDS",
+      "jndiName": "jdbc/AuditDataSource",
+      "driver": "oracle"
+    },
+    "EDIPartnerB2B": {
+      "type": "b2b",
+      "boomi_equivalent": "trading_partner",
+      "adapter_class": "oracle.tip.adapter.b2b.B2BAdapter",
+      "notes": "JCA adapter 'EDIPartnerB2B'. Configure credentials in Boomi environment extensions.",
+      "location": "eis/B2B/TradingPartnerCF",
+      "jndiName": "eis/B2B/TradingPartnerConnectionFactory",
+      "driver": "b2b"
+    }
+  },
+  "integrations": [
+    {
+      "name": "AccountSyncBPEL",
+      "source_name": "AccountSyncBPEL",
+      "flow_type": "primary",
+      "trigger": {
+        "type": "sftp_listener",
+        "config_ref": "AccountFileService",
+        "adapter_type": "sftp",
+        "partner_link": "AccountFileService"
+      },
+      "steps": [
+        {
+          "sequence": 2,
+          "type": "transform",
+          "label": "ExtractFileMetadata",
+          "partner_link": "",
+          "operation": "",
+          "variable": "",
+          "requires_review": false,
+          "_source_ref": "AccountSyncBPEL:step-2",
+          "field_mappings": [],
+          "boomi_step": "Set_Properties",
+          "complexity": "low"
+        },
+        {
+          "sequence": 3,
+          "type": "foreach",
+          "label": "ProcessEachAccount",
+          "partner_link": "",
+          "operation": "",
+          "variable": "",
+          "requires_review": false,
+          "_source_ref": "AccountSyncBPEL:step-3",
+          "boomi_step": "Data_Process_Split",
+          "complexity": "medium",
+          "loop_variable": "$RecordCount",
+          "substeps": [
+            {
+              "sequence": 4,
+              "type": "error_handler",
+              "label": "catchAll",
+              "partner_link": "",
+              "operation": "",
+              "variable": "",
+              "requires_review": false,
+              "_source_ref": "AccountSyncBPEL:step-4",
+              "fault_name": "*",
+              "boomi_step": "Catch_Branch",
+              "complexity": "low",
+              "substeps": [
+                {
+                  "sequence": 5,
+                  "type": "transform",
+                  "label": "LogRecordError",
+                  "partner_link": "",
+                  "operation": "",
+                  "variable": "",
+                  "requires_review": false,
+                  "_source_ref": "AccountSyncBPEL:step-5",
+                  "field_mappings": [],
+                  "boomi_step": "Set_Properties",
+                  "complexity": "low"
+                }
+              ]
+            },
+            {
+              "sequence": 6,
+              "type": "transform",
+              "label": "ExtractRecordFields",
+              "partner_link": "",
+              "operation": "",
+              "variable": "",
+              "requires_review": false,
+              "_source_ref": "AccountSyncBPEL:step-6",
+              "field_mappings": [],
+              "boomi_step": "Set_Properties",
+              "complexity": "low"
+            },
+            {
+              "sequence": 7,
+              "type": "oracle_ebs_api",
+              "label": "LookupEBSAccount",
+              "partner_link": "EBSAccountLookup",
+              "operation": "getAccountDetails",
+              "variable": "",
+              "requires_review": true,
+              "_source_ref": "AccountSyncBPEL:step-7",
+              "adapter_type": "oracle_ebs",
+              "config_ref": "EBSAccountLookup",
+              "boomi_step": "REST_Connector_or_Oracle_EBS_Connector",
+              "complexity": "high"
+            },
+            {
+              "sequence": 8,
+              "type": "transform",
+              "label": "BuildCRMUpsertRequest",
+              "partner_link": "",
+              "operation": "",
+              "variable": "",
+              "requires_review": false,
+              "_source_ref": "AccountSyncBPEL:step-8",
+              "field_mappings": [],
+              "boomi_step": "Set_Properties",
+              "complexity": "low"
+            },
+            {
+              "sequence": 9,
+              "type": "db_select",
+              "label": "UpsertCRMAccount",
+              "partner_link": "CRMDatabase",
+              "operation": "upsertAccount",
+              "variable": "",
+              "requires_review": false,
+              "_source_ref": "AccountSyncBPEL:step-9",
+              "adapter_type": "db",
+              "config_ref": "CRMDatabase",
+              "boomi_step": "DatabaseV2_GET",
+              "complexity": "low"
+            }
+          ]
+        }
+      ],
+      "variables": [
+        "AccountBatch",
+        "SourceFileName",
+        "RecordCount",
+        "CurrentRecord",
+        "EBSLookupRequest",
+        "EBSLookupResponse",
+        "CRMUpsertRequest",
+        "CRMUpsertResponse"
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_SOA_AccountSyncBPEL_Process",
+        "pattern": "file_processing",
+        "trigger_component": "DiskV2_Listen_SFTP",
+        "step_components": [
+          "Set_Properties",
+          "Data_Process_Split"
+        ],
+        "connections_needed": [],
+        "complexity": "medium",
+        "manual_review_required": false,
+        "notes": "Migrated from Oracle SOA BPEL process 'AccountSyncBPEL' in composite 'AccountSyncBatch'"
+      }
+    },
+    {
+      "name": "OrderProcessingBPEL",
+      "source_name": "OrderProcessingBPEL",
+      "flow_type": "primary",
+      "trigger": {
+        "type": "jms_listener",
+        "config_ref": "OrderQueueService",
+        "adapter_type": "oracle_aq",
+        "partner_link": "OrderQueueService"
+      },
+      "steps": [
+        {
+          "sequence": 2,
+          "type": "transform",
+          "label": "ExtractOrderFields",
+          "partner_link": "",
+          "operation": "",
+          "variable": "",
+          "requires_review": false,
+          "_source_ref": "OrderProcessingBPEL:step-2",
+          "field_mappings": [],
+          "boomi_step": "Set_Properties",
+          "complexity": "low"
+        },
+        {
+          "sequence": 3,
+          "type": "transform",
+          "label": "PrepareInventoryRequest",
+          "partner_link": "",
+          "operation": "",
+          "variable": "",
+          "requires_review": false,
+          "_source_ref": "OrderProcessingBPEL:step-3",
+          "field_mappings": [],
+          "boomi_step": "Set_Properties",
+          "complexity": "low"
+        },
+        {
+          "sequence": 4,
+          "type": "db_select",
+          "label": "CheckInventory",
+          "partner_link": "InventoryDB",
+          "operation": "checkAvailableStock",
+          "variable": "",
+          "requires_review": false,
+          "_source_ref": "OrderProcessingBPEL:step-4",
+          "adapter_type": "db",
+          "config_ref": "InventoryDB",
+          "boomi_step": "DatabaseV2_GET",
+          "complexity": "low"
+        },
+        {
+          "sequence": 5,
+          "type": "transform",
+          "label": "PrepareCreditRequest",
+          "partner_link": "",
+          "operation": "",
+          "variable": "",
+          "requires_review": false,
+          "_source_ref": "OrderProcessingBPEL:step-5",
+          "field_mappings": [],
+          "boomi_step": "Set_Properties",
+          "complexity": "low"
+        },
+        {
+          "sequence": 6,
+          "type": "oracle_ebs_api",
+          "label": "ValidateCredit",
+          "partner_link": "EBSCreditCheck",
+          "operation": "validateCustomerCredit",
+          "variable": "",
+          "requires_review": true,
+          "_source_ref": "OrderProcessingBPEL:step-6",
+          "adapter_type": "oracle_ebs",
+          "config_ref": "EBSCreditCheck",
+          "boomi_step": "REST_Connector_or_Oracle_EBS_Connector",
+          "complexity": "high"
+        },
+        {
+          "sequence": 7,
+          "type": "choice_router",
+          "label": "CheckApprovalConditions",
+          "partner_link": "",
+          "operation": "",
+          "variable": "",
+          "requires_review": false,
+          "_source_ref": "OrderProcessingBPEL:step-7",
+          "branches": [
+            {
+              "condition": "otherwise",
+              "branch_type": "else"
+            }
+          ],
+          "boomi_step": "Decision",
+          "complexity": "low"
+        }
+      ],
+      "variables": [
+        "InputOrder",
+        "OrderId",
+        "CustomerId",
+        "ProductId",
+        "Quantity",
+        "InventoryRequest",
+        "InventoryResponse",
+        "CreditRequest",
+        "CreditResponse",
+        "ShippingRequest",
+        "ShippingResponse",
+        "ErrorPayload"
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_SOA_OrderProcessingBPEL_Process",
+        "pattern": "event_driven",
+        "trigger_component": "EventStreams_Listen",
+        "step_components": [
+          "Set_Properties",
+          "Set_Properties",
+          "DatabaseV2_GET",
+          "Set_Properties",
+          "REST_Connector_or_Oracle_EBS_Connector",
+          "Decision"
+        ],
+        "connections_needed": [
+          "EBSCreditCheck",
+          "InventoryDB"
+        ],
+        "complexity": "high",
+        "manual_review_required": true,
+        "notes": "Migrated from Oracle SOA BPEL process 'OrderProcessingBPEL' in composite 'CustomerOrderProcessing'"
+      }
+    },
+    {
+      "name": "NotificationFanoutBPEL",
+      "source_name": "NotificationFanoutBPEL",
+      "flow_type": "primary",
+      "trigger": {
+        "type": "http_listener",
+        "config_ref": "NotificationEndpoint",
+        "adapter_type": "http_request",
+        "partner_link": "NotificationEndpoint"
+      },
+      "steps": [
+        {
+          "sequence": 2,
+          "type": "transform",
+          "label": "ExtractEventFields",
+          "partner_link": "",
+          "operation": "",
+          "variable": "",
+          "requires_review": false,
+          "_source_ref": "NotificationFanoutBPEL:step-2",
+          "field_mappings": [],
+          "boomi_step": "Set_Properties",
+          "complexity": "low"
+        },
+        {
+          "sequence": 3,
+          "type": "scatter_gather",
+          "label": "ParallelNotificationFanout",
+          "partner_link": "",
+          "operation": "",
+          "variable": "",
+          "requires_review": true,
+          "_source_ref": "NotificationFanoutBPEL:step-3",
+          "boomi_step": "Branch",
+          "complexity": "medium",
+          "gap_note": "BPEL <flow> executes branches in parallel. Boomi Branch step is sequential.",
+          "substeps": [
+            {
+              "sequence": 4,
+              "type": "transform",
+              "label": "PrepareEmailRequest",
+              "partner_link": "",
+              "operation": "",
+              "variable": "",
+              "requires_review": false,
+              "_source_ref": "NotificationFanoutBPEL:step-4",
+              "field_mappings": [],
+              "boomi_step": "Set_Properties",
+              "complexity": "low"
+            },
+            {
+              "sequence": 5,
+              "type": "http_request",
+              "label": "SendEmail",
+              "partner_link": "EmailService",
+              "operation": "sendEmail",
+              "variable": "",
+              "requires_review": false,
+              "_source_ref": "NotificationFanoutBPEL:step-5",
+              "adapter_type": "http_request",
+              "config_ref": "EmailService",
+              "boomi_step": "REST_Connector",
+              "complexity": "low"
+            },
+            {
+              "sequence": 6,
+              "type": "transform",
+              "label": "PrepareAuditRequest",
+              "partner_link": "",
+              "operation": "",
+              "variable": "",
+              "requires_review": false,
+              "_source_ref": "NotificationFanoutBPEL:step-6",
+              "field_mappings": [],
+              "boomi_step": "Set_Properties",
+              "complexity": "low"
+            },
+            {
+              "sequence": 7,
+              "type": "db_insert",
+              "label": "WriteAuditLog",
+              "partner_link": "AuditLogDB",
+              "operation": "insertAuditRecord",
+              "variable": "",
+              "requires_review": false,
+              "_source_ref": "NotificationFanoutBPEL:step-7",
+              "adapter_type": "db",
+              "config_ref": "AuditLogDB",
+              "boomi_step": "DatabaseV2_INSERT",
+              "complexity": "low"
+            },
+            {
+              "sequence": 8,
+              "type": "transform",
+              "label": "PrepareEDIRequest",
+              "partner_link": "",
+              "operation": "",
+              "variable": "",
+              "requires_review": false,
+              "_source_ref": "NotificationFanoutBPEL:step-8",
+              "field_mappings": [],
+              "boomi_step": "Set_Properties",
+              "complexity": "low"
+            },
+            {
+              "sequence": 9,
+              "type": "custom",
+              "label": "SendEDIToPartner",
+              "partner_link": "EDIPartnerB2B",
+              "operation": "sendEDIDocument",
+              "variable": "",
+              "requires_review": true,
+              "_source_ref": "NotificationFanoutBPEL:step-9",
+              "adapter_type": "b2b",
+              "config_ref": "EDIPartnerB2B",
+              "boomi_step": "REVIEW_REQUIRED",
+              "complexity": "high"
+            }
+          ]
+        },
+        {
+          "sequence": 10,
+          "type": "transform",
+          "label": "BuildReply",
+          "partner_link": "",
+          "operation": "",
+          "variable": "",
+          "requires_review": false,
+          "_source_ref": "NotificationFanoutBPEL:step-10",
+          "field_mappings": [],
+          "boomi_step": "Set_Properties",
+          "complexity": "low"
+        },
+        {
+          "sequence": 11,
+          "type": "bpel_reply",
+          "label": "SendReply",
+          "partner_link": "NotificationEndpoint",
+          "operation": "sendNotification",
+          "variable": "NotificationReply",
+          "requires_review": false,
+          "_source_ref": "NotificationFanoutBPEL:step-11",
+          "boomi_step": "Return_Documents",
+          "complexity": "low"
+        }
+      ],
+      "variables": [
+        "NotificationInput",
+        "NotificationReply",
+        "EventId",
+        "EventType",
+        "RecipientEmail",
+        "EmailRequest",
+        "AuditRequest",
+        "EDIRequest"
+      ],
+      "error_handling": {
+        "has_error_handler": false,
+        "strategies": []
+      },
+      "boomi_suggestions": {
+        "process_name": "MIG_SOA_NotificationFanoutBPEL_Process",
+        "pattern": "request_reply_api",
+        "trigger_component": "WSS_Listener",
+        "step_components": [
+          "Set_Properties",
+          "Branch",
+          "Set_Properties",
+          "Return_Documents"
+        ],
+        "connections_needed": [],
+        "complexity": "high",
+        "manual_review_required": true,
+        "notes": "Migrated from Oracle SOA BPEL process 'NotificationFanoutBPEL' in composite 'NotificationFanout'"
+      }
+    }
+  ],
+  "gaps": [
+    {
+      "flow_name": "NotificationFanoutBPEL",
+      "step_sequence": 3,
+      "source_type": "bpel_flow",
+      "issue": "BPEL <flow> executes branches in parallel. Boomi Branch step is sequential.",
+      "resolution": "Implemented as Boomi Branch (sequential). Parallel execution not preserved.",
+      "severity": "medium",
+      "behavioral_difference": "Parallel \u2192 sequential execution",
+      "suggested_resolution": "Use separate Boomi processes + Event Streams if true parallelism is needed",
+      "decision_required": true,
+      "auto_resolved": false
+    }
+  ],
+  "migration_notes": "Generated by analyze_oracle_soa.py from oracle_soa composites. Review all steps marked requires_review=true before generating Boomi processes. Oracle EBS adapters may require the Oracle EBS native connector in Boomi \u2014 run boomi-component-search.sh to check if it is available in the account."
+}

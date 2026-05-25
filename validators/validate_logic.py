@@ -57,7 +57,8 @@ SEVERITY_DEDUCTIONS = {
 }
 
 STEP_TYPE_RISK = {
-    "transform":         "high",    # Data shape change — must verify field mappings
+    # MuleSoft / generic
+    "transform":         "medium",  # Risk reduced to medium — high only when no field_mappings
     "scatter_gather":    "high",    # Parallel → sequential behavioral change
     "async_scope":       "high",    # No direct equivalent
     "batch_job":         "high",    # Complex mapping required
@@ -65,11 +66,26 @@ STEP_TYPE_RISK = {
     "db_select":         "low",     # SQL preserved verbatim
     "db_insert":         "low",
     "db_update":         "low",
+    "db_stored_procedure": "medium",
     "http_request":      "medium",  # Auth setup varies
     "salesforce_query":  "low",     # Native connector available
     "try_scope":         "medium",  # Error strategy nuances
     "foreach":           "medium",  # Loop semantics differ slightly
     "custom":            "high",    # Unknown — always needs review
+    # Oracle SOA / BPEL specific
+    "oracle_ebs_api":    "high",    # EBS connector setup required; may need REST fallback
+    "bpel_reply":        "low",     # Maps cleanly to Return Documents / WSS response
+    "bpel_wait":         "high",    # No native Boomi timer — requires process split
+    "bpel_receive":      "medium",  # Mid-flow receive (correlation) needs manual setup
+    "bpel_invoke":       "medium",  # Generic fallback if adapter not resolved
+    "error_handler":     "low",     # Catch branches map cleanly
+    "trigger":           "medium",  # Trigger type may need manual config
+    "oracle_ebs_event":  "high",    # EBS event subscription — no direct equivalent
+    "jms_publish":       "low",     # Event Streams Produce maps cleanly
+    "file_write":        "low",
+    "file_read":         "low",
+    "sftp_write":        "low",
+    "sftp_read":         "low",
 }
 
 
@@ -130,10 +146,22 @@ class CoverageAnalyzer:
                 fully_preserved += 1
 
             # Score deduction
-            if severity in SEVERITY_DEDUCTIONS and (requires_human or severity in ("high", "blocked")):
-                deduction = SEVERITY_DEDUCTIONS.get(severity, 2.0)
+            # Downgrade transform steps that have explicit field_mappings AND don't require review:
+            # the mappings are known — implementation risk only, not structural risk.
+            effective_severity = severity
+            if step_type == "transform" and has_mappings and not requires_review:
+                has_complex = step.get("has_complex_logic", False)
+                effective_severity = "medium" if has_complex else "low"
+
+            applies = (
+                requires_human
+                or effective_severity in ("high", "blocked")
+                or (effective_severity == "medium" and requires_review and not is_enriched)
+            )
+            if effective_severity in SEVERITY_DEDUCTIONS and applies:
+                deduction = SEVERITY_DEDUCTIONS.get(effective_severity, 2.0)
                 deductions.append({
-                    "flow": flow_name, "step": label, "severity": severity,
+                    "flow": flow_name, "step": label, "severity": effective_severity,
                     "points_deducted": deduction, "reason": self._deduction_reason(step_type, step)
                 })
 
@@ -199,11 +227,14 @@ class CoverageAnalyzer:
 
     def _deduction_reason(self, step_type, step):
         reasons = {
-            "transform":      "Field-level data mapping not fully verified",
-            "scatter_gather": "Parallel execution changed to sequential — throughput impact",
-            "async_scope":    "Asynchronous behavior requires separate process architecture",
-            "batch_job":      "Batch semantics require Data Process split + subprocess pattern",
-            "custom":         "Step type has no direct Boomi equivalent",
+            "transform":          "Field mappings extracted but require wiring in Boomi Map editor",
+            "scatter_gather":     "Parallel execution changed to sequential — throughput impact",
+            "async_scope":        "Asynchronous behavior requires separate process architecture",
+            "batch_job":          "Batch semantics require Data Process split + subprocess pattern",
+            "custom":             "Step type has no direct Boomi equivalent",
+            "oracle_ebs_api":     "Oracle EBS Adapter call — check native connector in Boomi account",
+            "bpel_wait":          "Timer-based suspension not natively supported in Boomi",
+            "bpel_receive":       "Mid-flow correlation receive requires manual setup",
         }
         return step.get("behavioral_difference") or reasons.get(step_type, "Requires manual verification")
 
