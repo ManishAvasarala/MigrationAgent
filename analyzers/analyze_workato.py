@@ -37,6 +37,10 @@ _WORKATO_REGION_URLS = {
 }
 
 def _base_url_for_token(token: str) -> str:
+    # Allow explicit override — useful when token prefix doesn't match actual datacenter
+    override = os.environ.get("WORKATO_BASE_URL", "").strip()
+    if override:
+        return override
     prefix = token.split("-")[0].lower()
     return _WORKATO_REGION_URLS.get(prefix, WORKATO_BASE_URL)
 

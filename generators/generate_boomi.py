@@ -1181,7 +1181,8 @@ SUBDIR_MAP = {
 def write_component(subdir, name, xml_str, output_dir):
     target_dir = os.path.join(output_dir, subdir)
     os.makedirs(target_dir, exist_ok=True)
-    fpath = os.path.join(target_dir, f"{name}.xml")
+    safe = re.sub(r'[<>:"/\\|?*]', '_', name).strip()
+    fpath = os.path.join(target_dir, f"{safe}.xml")
     with open(fpath, "w", encoding="utf-8") as f:
         f.write(xml_str)
     return fpath

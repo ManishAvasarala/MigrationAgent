@@ -158,3 +158,75 @@ If curl returns exit code 35 (SSL handshake failure), alert the user to check co
 If the user asks you to "make it good," that is a shorthand reminder to work through the objective's tasks and the skill's instructions thoughtfully, accurately, and mindfully, thinking step by step. 
 
 The assistant is Claude, operating as the Boomi Companion Agent (sometimes called 'the agent').
+
+## Boomi XML Schema — Hard-won Rules
+
+These were learned through live push failures and confirmed against the Boomi platform API. Trust these over skill docs when there is a conflict.
+
+### Groovy / Data Process shapes
+- `shapetype="dataprocess"` and `image="dataprocess_icon"` (NOT `"data"` / `"data_icon"`)
+- Step element: `<step index="1" key="1" name="Custom Scripting" processtype="12">` — no `function` attribute
+- Script element: `<dataprocessscript language="groovy2" useCache="true">` — NO `checkForMoreData` attribute
+- Groovy code goes inside `<script><![CDATA[...]]></script>` child of `<dataprocessscript>`, NOT directly as CDATA
+
+### Message shape parameters
+- Use `<parametervalue key="N" valueType="process">` NOT `<msgParameter>`
+- Use `<processparameter processproperty="DPP_NAME" processpropertydefaultvalue=""/>` NOT `<processPropertyValue propertyId="process.DPP_NAME"/>`
+- `valueType="process"` for DPP refs (NOT `"processproperty"`)
+
+### Decision shapes (DPP comparison)
+Same `valueType="process"` + `<processparameter>` pattern as Message shapes.
+
+### REST connector actionType
+Always `actionType="EXECUTE"` for `connectorType="officialboomi-X3979C-rest-prod"` shapes — never "GET", "POST", etc.
+
+### create.sh vs push.sh
+- **No sync state or "ComponentId invalid" error** → use `boomi-component-create.sh`
+- **Sync state exists** → use `boomi-component-push.sh`
+
+## Connector Discovery Rule
+
+At the start of any migration or integration task, run `boomi-component-search.sh` against the live account before designing the approach. The account has native connectors (netsuitesdk, salesforce, etc.) that are far more appropriate than generic REST. Always check:
+```bash
+bash <skill-path>/scripts/boomi-component-search.sh --name "%SystemName%" --type "connector-settings,connector-action"
+```
+
+## Active Migrations
+
+### Workato → Boomi: SF Account sync to NetSuite (COMPLETE)
+All 5 components pushed. Folder: `ClaudeCode/MIG_<project>` (folderId `Rjo4NTY2MjA1`)
+
+| Component | ID |
+|---|---|
+| MIG_Sync new/updated account from Salesforce to NetSuite (process) | c41bc08e-100e-43da-865d-808f15db3ba6 |
+| MIG_NS_SuiteQL_Search_Operation | ea187caa-fbbc-4287-b5a3-b4a6031fe566 |
+| MIG_NS_Get_Subsidiaries_Operation | a115a877-de21-49c1-ab86-f726093b282c |
+| MIG_NS_Create_Customer | eda0db3d-e7cf-4569-90ac-1673606279b7 |
+| MIG_NS_Update_Customer | 51bafc9a-d812-4db1-af13-4feeaab2369f |
+
+**Reused connections:** Salesforce `647ff483`, NetSuite REST `1cce1777`, NetSuite TBA `15c076fa`
+
+**Remaining manual GUI steps:**
+1. shape2: Import "Query Modified Accounts" Salesforce operation → add operationId
+2. shape1: Change Passthrough Start to scheduled or Salesforce listener trigger
+3. NetSuite TBA connection `15c076fa`: Configure via Environment Extensions
+4. NetSuite REST connection `1cce1777`: Configure OAuth2 credentials
+
+### Workato → Boomi: Upload Salesforce account files to Box (IN PROGRESS)
+Folder: `ClaudeCode/MIG_<project>` (folderId `Rjo4NTY2MjA1`)
+
+| Component | ID | Status |
+|---|---|---|
+| MIG_Upload Salesforce account files to Box (process) | b7b973d4-5b4d-4bf9-9af0-b6f2b9736aa8 | PUSHED |
+| MIG_Box_Connection | (not yet on platform) | NEEDS GUI CREATE |
+
+**Box connection note:** The Box native connector XML schema is not known — Boomi rejected `<Connection/>` as invalid. User must create the Box connection in Boomi GUI, then update the process to reference it.
+
+**Remaining manual GUI steps:**
+1. Create Box connection in GUI → configure OAuth2 Client ID, Client Secret, Access Token
+2. shape2: Import Salesforce "New Account" query/GET operation → add operationId
+3. shape4: Configure Box Search operation — search term = `DPP_SF_ACCOUNT_NAME`, type = folder
+4. shape7: Configure Box Create Folder operation — name = `DPP_SF_ACCOUNT_NAME`, parent folder ID = 0 (root)
+5. shape9: Import Salesforce QUERY Attachment operation — filter WHERE `ParentId = DPP_SF_ACCOUNT_ID`
+6. shape11: Configure Box Upload operation — folder = `DPP_BOX_FOLDER_ID`, filename = `DPP_ATTACHMENT_NAME`
+7. Box connector shapes (4, 7, 11): Wire to the Box connection created in step 1
