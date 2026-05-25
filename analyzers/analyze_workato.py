@@ -210,7 +210,48 @@ def _classify_salesforce_op(name):
 
 # ─── Step extraction ──────────────────────────────────────────────────────────
 
-def extract_steps(block, sequence_start=1):
+_WORKATO_BEHAVIORAL_DIFFS = {
+    'connector_action': 'Workato connector action — verify Boomi has equivalent native connector before using REST.',
+    'loop':             'Workato foreach loops over a list; Boomi processes each document independently through the pipeline.',
+    'try_catch':        'Workato monitor block catches all errors; Boomi Try/Catch has different error scoping.',
+    'transform':        'Workato list transformation (map_list) requires Boomi Map component or Groovy Data Process.',
+}
+
+_WORKATO_SUGGESTED_RESOLUTIONS = {
+    'connector_action': 'Run boomi-component-search.sh to find native connector; if none found, use REST with custom auth.',
+    'loop':             'Use Boomi Data Process split + sub-process pattern to process each item independently.',
+    'try_catch':        'Wrap monitored steps in Boomi Try/Catch shape with appropriate error routing.',
+    'transform':        'Run LLM enrichment to auto-generate Boomi Groovy equivalent.',
+}
+
+
+def _extract_workato_pill_refs(inp):
+    """
+    Extract Workato data pill references from an input dict.
+    Pills encode the source of data: provider, path, and pill_type.
+    Example: #{_dp('{"provider":"salesforce","path":["Name"]}')}
+    Returns list of {provider, path, field} dicts.
+    """
+    if not inp:
+        return []
+    inp_str = json.dumps(inp) if isinstance(inp, dict) else str(inp)
+    pills = []
+    for raw in re.findall(r'_dp\([\'"](\{[^\'\"]+\})[\'"]', inp_str):
+        try:
+            p = json.loads(raw)
+            path = p.get("path", [])
+            pills.append({
+                "provider": p.get("provider", ""),
+                "field": ".".join(str(x) for x in path) if path else "",
+                "pill_type": p.get("pill_type", "output"),
+                "source_step": p.get("line", ""),
+            })
+        except (json.JSONDecodeError, Exception):
+            pass
+    return pills
+
+
+def extract_steps(block, sequence_start=1, flow_name=""):
     """
     Recursively extract and classify steps from a Workato recipe block.
     Pairs if_condition / else_condition into a single choice_router step
@@ -233,7 +274,7 @@ def extract_steps(block, sequence_start=1):
 
         # ── IF/ELSE pairing ──────────────────────────────────────────────
         if canon_type == "choice_router":
-            true_steps = extract_steps(item.get("block", []), seq + 1)
+            true_steps = extract_steps(item.get("block", []), seq + 1, flow_name)
             false_steps = []
             condition_text = _extract_condition(inp)
 
@@ -246,7 +287,7 @@ def extract_steps(block, sequence_start=1):
                 )
                 if next_type == "choice_router_else":
                     i += 1
-                    false_steps = extract_steps(items[i].get("block", []), seq + 1)
+                    false_steps = extract_steps(items[i].get("block", []), seq + 1, flow_name)
 
             step = {
                 "source_tag": f"{provider}:{name}",
@@ -258,6 +299,7 @@ def extract_steps(block, sequence_start=1):
                 "workato_name": name,
                 "complexity": "medium",
                 "sequence": seq,
+                "_source_ref": f"{flow_name}:step-{seq}" if flow_name else f"step-{seq}",
                 "condition": condition_text,
                 "true_steps": true_steps,
                 "false_steps": false_steps,
@@ -273,6 +315,7 @@ def extract_steps(block, sequence_start=1):
             continue
 
         # ── Build common step dict ────────────────────────────────────────
+        pill_refs = _extract_workato_pill_refs(inp)
         step = {
             "source_tag": f"{provider}:{name}",
             "type": canon_type,
@@ -283,6 +326,8 @@ def extract_steps(block, sequence_start=1):
             "workato_name": name,
             "complexity": "low",
             "sequence": seq,
+            "_source_ref": f"{flow_name}:step-{seq}" if flow_name else f"step-{seq}",
+            "input_pill_refs": pill_refs if pill_refs else None,
         }
 
         # ── Type-specific enrichment ──────────────────────────────────────
@@ -352,7 +397,7 @@ def extract_steps(block, sequence_start=1):
             step["requires_review"] = False
 
         elif canon_type == "loop":
-            step["loop_steps"] = extract_steps(item.get("block", []), seq + 1)
+            step["loop_steps"] = extract_steps(item.get("block", []), seq + 1, flow_name)
             step["loop_over"] = inp.get("list", inp.get("source", ""))
             step["complexity"] = "medium"
 
@@ -365,9 +410,16 @@ def extract_steps(block, sequence_start=1):
             step["requires_review"] = True
 
         elif canon_type == "connector_action":
-            # Unknown/unmapped connector — preserve details for reviewer
             step["requires_review"] = True
             step["label"] = f"{provider}: {label}" if provider and provider != label else label
+            step["behavioral_difference"] = _WORKATO_BEHAVIORAL_DIFFS.get(
+                canon_type, f"Workato '{provider}' connector — verify Boomi native connector availability."
+            )
+            step["suggested_resolution"] = _WORKATO_SUGGESTED_RESOLUTIONS.get(
+                canon_type, "Search Boomi account for native connector; fall back to REST if absent."
+            )
+            step["severity"] = "medium"
+            step["decision_required"] = False
 
         steps.append(step)
         seq += 1
@@ -438,7 +490,7 @@ def analyze_recipe(recipe_data):
     code = parse_recipe_code(code_raw)
 
     trigger = extract_trigger(code)
-    steps = extract_steps(code.get("block", []))
+    steps = extract_steps(code.get("block", []), flow_name=name)
 
     # Extract connections from config
     config_raw = recipe_data.get("config", [])
@@ -593,16 +645,29 @@ def _build_spec(flows, project_name, output_path, source_files):
     gaps = []
     for flow in flows:
         if flow["trigger"].get("requires_review"):
-            gaps.append({"flow": flow["name"], "component": "trigger",
-                         "note": "Unknown trigger type"})
+            gaps.append({
+                "flow": flow["name"],
+                "component": "trigger",
+                "label": flow["trigger"].get("label", "trigger"),
+                "note": "Unknown trigger type — map to Boomi passthrough start and configure manually",
+                "severity": "medium",
+                "decision_required": True,
+                "auto_resolved": False,
+            })
         for step in _iter_all_steps(flow.get("steps", [])):
             if step.get("requires_review"):
                 gaps.append({
                     "flow": flow["name"],
                     "step_type": step.get("type"),
                     "sequence": step.get("sequence"),
+                    "source_ref": step.get("_source_ref", ""),
                     "label": step.get("label", ""),
                     "note": "Manual review required",
+                    "behavioral_difference": step.get("behavioral_difference", ""),
+                    "suggested_resolution": step.get("suggested_resolution", ""),
+                    "severity": step.get("severity", "medium"),
+                    "decision_required": step.get("decision_required", False),
+                    "auto_resolved": False,
                 })
 
     spec = {

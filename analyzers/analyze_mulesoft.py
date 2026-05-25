@@ -15,6 +15,7 @@ Output: migration-specs/<project-name>.json
 
 import sys
 import os
+import re
 import json
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -107,6 +108,73 @@ BOOMI_CONN_MAP = {
     'amqp':           'custom_connector_review',
     'sqs':            'rest_connection_aws_sqs',
 }
+
+
+# ─── DataWeave parser ─────────────────────────────────────────────────────────
+
+_DW_COMPLEX_PATTERNS = [
+    r'\bif\b', r'\belse\b', r'\bwhen\b', r'\bmatch\b', r'\bcase\b',
+    r'\bfilter\b', r'\bflatMap\b', r'\bgroupBy\b', r'\bjoinBy\b',
+    r'\bpluck\b', r'\breduce\b', r'\bzip\b', r'\bflatten\b',
+    r'\bsizeOf\b', r'\bmax\b', r'\bmin\b', r'\bsum\b',
+]
+
+def parse_dataweave_mappings(dw_str):
+    """
+    Parse a DataWeave 2.0 script into structured field_mappings.
+    Returns (field_mappings: list, has_complex_logic: bool, raw_body: str).
+    Simple direct mappings (target: source.path) are extracted deterministically.
+    Anything using conditionals, functions, or filters is flagged for LLM enrichment.
+    """
+    if not dw_str:
+        return [], True, ""
+
+    # Strip DW header, isolate body after ---
+    parts = dw_str.split("---", 1)
+    body = parts[1].strip() if len(parts) > 1 else dw_str.strip()
+
+    # Detect complex logic patterns — flag for LLM if present
+    has_complex = any(re.search(p, body) for p in _DW_COMPLEX_PATTERNS)
+
+    mappings = []
+    # Match simple: fieldName: source.field.path (no parens, no brackets after)
+    simple_re = re.compile(
+        r'^\s{2,}(\w+):\s+([\w.]+(?:\s+as\s+\w+)?)\s*[,}]?$',
+        re.MULTILINE
+    )
+    for m in simple_re.finditer(body):
+        target = m.group(1)
+        source_expr = m.group(2).strip()
+
+        # Skip DW keywords and output declarations
+        if target in ('output', 'payload', 'vars', 'attributes', 'error',
+                      'message', 'items', 'item', 'true', 'false', 'null'):
+            continue
+
+        type_cast = "string"
+        source_path = source_expr
+        if ' as ' in source_expr:
+            source_path, cast_raw = source_expr.split(' as ', 1)
+            cast_raw = cast_raw.strip().lower()
+            type_cast = {
+                'string': 'string', 'number': 'decimal', 'integer': 'integer',
+                'boolean': 'boolean', 'datetime': 'datetime', 'date': 'datetime',
+                'localtime': 'datetime', 'localdatetime': 'datetime',
+            }.get(cast_raw, cast_raw)
+
+        mappings.append({
+            "source": source_path.strip(),
+            "target": target,
+            "type": type_cast,
+            "transformation": "passthrough",
+        })
+
+    return mappings, has_complex, body
+
+
+def extract_env_vars(text):
+    """Extract all ${variable} references from a string."""
+    return sorted(set(re.findall(r'\$\{([\w.]+)\}', text or '')))
 
 
 def tag_ns(tag: str) -> str:
@@ -222,6 +290,7 @@ def parse_db_config(el: ET.Element, name: str) -> dict:
                 driver = 'oracle'
             elif 'sqlserver' in url_val.lower() or 'mssql' in url_val.lower():
                 driver = 'sqlserver'
+    all_text = f"{host} {url} {database}"
     return {
         'type': 'db',
         'driver': driver,
@@ -229,7 +298,8 @@ def parse_db_config(el: ET.Element, name: str) -> dict:
         'port': port,
         'database': database,
         'jdbc_url': url,
-        'uses_env_vars': '${' in (host + url),
+        'uses_env_vars': '${' in all_text,
+        'env_vars': extract_env_vars(all_text),
         'boomi_equivalent': BOOMI_CONN_MAP['db'],
         'boomi_driver': driver.capitalize(),
         'notes': f'Driver: {driver}',
@@ -432,12 +502,30 @@ def classify_step(el: ET.Element) -> dict:
             has_dw = payload_el is not None and payload_el.text and '%dw' in payload_el.text
             vars_els = el.findall('.//{http://www.mulesoft.org/schema/mule/ee/core}set-variable')
             output_format = ''
+            raw_script = ''
+            field_mappings = []
+            has_complex = False
+
             if payload_el is not None and payload_el.text:
-                for line in payload_el.text.split('\n'):
+                raw_script = payload_el.text.strip()
+                for line in raw_script.split('\n'):
                     if 'output' in line:
                         output_format = line.strip().replace('output', '').strip()
                         break
-            step.update({'type': 'transform', 'has_dataweave': has_dw, 'output_format': output_format, 'sets_variables': len(vars_els) > 0})
+                # Deterministic field-mapping extraction
+                field_mappings, has_complex, _ = parse_dataweave_mappings(raw_script)
+
+            step.update({
+                'type': 'transform',
+                'has_dataweave': has_dw,
+                'output_format': output_format,
+                'sets_variables': len(vars_els) > 0,
+                'raw_script': raw_script,
+                'field_mappings': field_mappings,
+                'has_complex_logic': has_complex,
+                # Only flag requires_review if mappings are complex or missing
+                'requires_review': has_complex or not field_mappings,
+            })
 
     # --- file namespace ---
     elif ns_prefix == 'file':
@@ -555,6 +643,7 @@ def parse_flow(el: ET.Element, flow_type: str = 'primary') -> dict:
 
         sequence += 1
         classified['sequence'] = sequence
+        classified['_source_ref'] = f"{name}:step-{sequence}"
         steps.append(classified)
 
     # Parse error handler
@@ -626,6 +715,58 @@ def infer_pattern(trigger: Optional[dict], steps: list) -> str:
 # Main analysis orchestration
 # ---------------------------------------------------------------------------
 
+def _iter_steps_recursive(steps):
+    """Flatten all nested steps for gap collection."""
+    for step in (steps or []):
+        yield step
+        for key in ('true_steps', 'false_steps', 'monitored_steps', 'loop_steps'):
+            yield from _iter_steps_recursive(step.get(key, []))
+        for branch in step.get('additional_branches', []):
+            yield from _iter_steps_recursive(branch.get('steps', []))
+
+
+_GAP_SEVERITY = {
+    'scatter_gather': 'high',
+    'async_scope':    'high',
+    'batch_job':      'high',
+    'custom':         'high',
+    'transform':      'medium',   # may be enriched by LLM
+    'try_scope':      'medium',
+    'foreach':        'low',
+}
+
+_BEHAVIORAL_DIFFERENCES = {
+    'scatter_gather': 'MuleSoft executes scatter-gather routes in parallel; Boomi Branch step is sequential. Throughput and latency will differ.',
+    'async_scope':    'MuleSoft async scope is fire-and-forget with no return value; Boomi has no equivalent shape — requires a separate process.',
+    'batch_job':      'MuleSoft batch has built-in chunking, error boundaries per record, and commit/rollback phases. Boomi approximation uses Data Process split + subprocess.',
+    'transform':      'DataWeave transformation logic must be replicated in Boomi Map component or Groovy Data Process step.',
+    'try_scope':      'MuleSoft error type hierarchy (e.g. DB:CONNECTIVITY) maps to Boomi Try/Catch but with different error granularity.',
+    'custom':         'Step type is unknown — no automatic mapping available.',
+}
+
+_SUGGESTED_RESOLUTIONS = {
+    'scatter_gather': 'Use Boomi Branch step (sequential). Accept if route order is independent; refactor if not.',
+    'async_scope':    'Create a separate Boomi sub-process. Use Process Call with wait=false or Event Streams Produce for true async.',
+    'batch_job':      'Use Data Process step (Split Documents) to chunk records, call a sub-process per chunk.',
+    'transform':      'Run LLM enrichment (enrich_spec.py) to auto-generate field_mappings and Groovy equivalent.',
+    'custom':         'Inspect source system docs; implement closest Boomi equivalent manually.',
+}
+
+
+def _gap_severity(step_type, step):
+    if step.get('complexity') == 'high':
+        return _GAP_SEVERITY.get(step_type, 'medium')
+    return _GAP_SEVERITY.get(step_type, 'low')
+
+
+def _behavioral_difference(step_type, step):
+    return step.get('gap_note') or _BEHAVIORAL_DIFFERENCES.get(step_type, 'Behavior may differ — manual review required.')
+
+
+def _suggested_resolution(step_type, step):
+    return _SUGGESTED_RESOLUTIONS.get(step_type, f"Implement using {step.get('boomi_step', 'closest Boomi equivalent')}.")
+
+
 def analyze_xml_file(xml_path: Path, connections: dict, integrations: list, gaps: list):
     tree = ET.parse(xml_path)
     root = tree.getroot()
@@ -646,15 +787,23 @@ def analyze_xml_file(xml_path: Path, connections: dict, integrations: list, gaps
         if local == 'flow':
             flow_data = parse_flow(child, flow_type='primary')
             integrations.append(flow_data)
-            for step in flow_data['steps']:
+            for step in _iter_steps_recursive(flow_data['steps']):
                 if step.get('requires_review'):
+                    step_type = step['type']
+                    severity = _gap_severity(step_type, step)
                     gaps.append({
                         'flow_name': flow_data['name'],
                         'step_sequence': step.get('sequence'),
-                        'source_type': step['type'],
+                        'source_ref': step.get('_source_ref', ''),
+                        'source_type': step_type,
+                        'label': step.get('label', step_type),
                         'issue': step.get('gap_note', 'Requires manual review'),
-                        'resolution': f"Closest Boomi equivalent: {step['boomi_step']}",
-                        'severity': 'medium' if step['complexity'] == 'high' else 'low',
+                        'behavioral_difference': _behavioral_difference(step_type, step),
+                        'resolution': f"Closest Boomi equivalent: {step.get('boomi_step', 'REVIEW_REQUIRED')}",
+                        'suggested_resolution': _suggested_resolution(step_type, step),
+                        'severity': severity,
+                        'decision_required': severity in ('high', 'blocked'),
+                        'auto_resolved': False,
                     })
             continue
 
