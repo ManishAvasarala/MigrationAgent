@@ -6,7 +6,7 @@ This workspace is a **platform-agnostic integration migration agent**. It migrat
 
 | Role | Supported |
 |---|---|
-| Source (pull + analyze) | Boomi, MuleSoft, Oracle SOA Suite / EBS, Workato, Celigo, webMethods.io |
+| Source (pull + analyze) | Boomi, MuleSoft, Oracle SOA Suite / EBS, Oracle Integration Cloud, Workato, Celigo, webMethods.io |
 | Target (generate + push) | Workato, Boomi |
 | Future | SAP, Azure Logic Apps |
 
@@ -95,6 +95,15 @@ ORACLE_SOA_USERNAME=weblogic
 ORACLE_SOA_PASSWORD=<password>
 ORACLE_SOA_PARTITION=default          # composite partition, usually "default"
 ORACLE_SOA_EM_PORT=7001               # optional: EM Console port for SAR export
+```
+
+**Oracle Integration Cloud (for oracle_oic source):**
+```
+ORACLE_OIC_HOST=mycompany.integration.ocp.oraclecloud.com
+ORACLE_OIC_PORT=443
+ORACLE_OIC_USERNAME=<oracle cloud email>
+ORACLE_OIC_PASSWORD=<password>
+ORACLE_OIC_VERSION=v3                 # OIC API version (v2 or v3)
 ```
 
 **Anthropic (for LLM enrichment):**

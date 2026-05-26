@@ -18,17 +18,19 @@ import streamlit as st
 
 AGENT_DIR = Path(__file__).parent.resolve()
 
-PLATFORMS = ["boomi", "mulesoft", "workato", "celigo", "webmethods"]
+PLATFORMS = ["boomi", "mulesoft", "workato", "celigo", "webmethods", "oracle_soa", "oracle_oic"]
 PLATFORM_LABELS = {
     "boomi":      "Boomi",
     "mulesoft":   "MuleSoft",
     "workato":    "Workato",
     "celigo":     "Celigo",
     "webmethods": "webMethods.io",
+    "oracle_soa": "Oracle SOA / EBS",
+    "oracle_oic": "Oracle Integration Cloud",
 }
 
 # Which platforms can act as source / target
-SOURCE_PLATFORMS = ["boomi", "mulesoft", "workato", "celigo", "webmethods"]
+SOURCE_PLATFORMS = ["boomi", "mulesoft", "workato", "celigo", "webmethods", "oracle_soa", "oracle_oic"]
 TARGET_PLATFORMS = ["boomi", "workato", "celigo", "webmethods"]
 
 
@@ -70,6 +72,24 @@ def source_credential_form(platform: str) -> dict:
         env["WMIO_USERNAME"]   = st.text_input("Username", key="src_wmio_user")
         env["WMIO_PASSWORD"]   = st.text_input("Password", type="password", key="src_wmio_pass")
 
+    elif platform == "oracle_soa":
+        st.markdown("**Oracle SOA Suite / EBS credentials** *(leave blank to use local SAR files)*")
+        env["ORACLE_SOA_HOST"]      = st.text_input("SOA host", placeholder="soaserver.internal", key="src_soa_host")
+        env["ORACLE_SOA_PORT"]      = st.text_input("Port", value="7001", key="src_soa_port")
+        env["ORACLE_SOA_USERNAME"]  = st.text_input("Username", value="weblogic", key="src_soa_user")
+        env["ORACLE_SOA_PASSWORD"]  = st.text_input("Password", type="password", key="src_soa_pass")
+        env["ORACLE_SOA_PARTITION"] = st.text_input("Partition", value="default", key="src_soa_partition")
+        st.info("Leave all fields blank and provide a SAR directory below to analyze local exports instead of a live system.")
+
+    elif platform == "oracle_oic":
+        st.markdown("**Oracle Integration Cloud credentials** *(leave blank to use local .iar files)*")
+        env["ORACLE_OIC_HOST"]     = st.text_input("OIC host", placeholder="mycompany.integration.ocp.oraclecloud.com", key="src_oic_host")
+        env["ORACLE_OIC_PORT"]     = st.text_input("Port", value="443", key="src_oic_port")
+        env["ORACLE_OIC_USERNAME"] = st.text_input("Username / email", key="src_oic_user")
+        env["ORACLE_OIC_PASSWORD"] = st.text_input("Password", type="password", key="src_oic_pass")
+        env["ORACLE_OIC_VERSION"]  = st.text_input("API version", value="v3", key="src_oic_version")
+        st.info("Leave all fields blank and provide a .iar directory below to analyze local exports instead of a live system.")
+
     return env
 
 
@@ -104,6 +124,28 @@ def source_options_form(platform: str) -> dict:
 
     elif platform == "mulesoft":
         pass  # handled in source_credential_form
+
+    elif platform == "oracle_soa":
+        opts["oracle_soa_source_dir"] = st.text_input(
+            "Local SAR directory (leave blank to pull from live system)",
+            placeholder="/path/to/sar-exports/",
+            key="src_soa_dir",
+        )
+        opts["oracle_soa_filter"] = st.text_input(
+            "Composite name filter (optional, e.g. Order*)",
+            key="src_soa_filter",
+        )
+
+    elif platform == "oracle_oic":
+        opts["oracle_oic_source_dir"] = st.text_input(
+            "Local .iar directory (leave blank to pull from live system)",
+            placeholder="/path/to/iar-exports/",
+            key="src_oic_dir",
+        )
+        opts["oracle_oic_filter"] = st.text_input(
+            "Integration name filter (optional, e.g. Customer*)",
+            key="src_oic_filter",
+        )
 
     return opts
 
@@ -162,6 +204,21 @@ def build_migrate_cmd(source: str, target: str, source_opts: dict, dest_name: st
         cmd += ["--source-dir", source_opts["celigo_integration"]]
     elif source == "webmethods" and source_opts.get("wmio_project"):
         cmd += ["--source-dir", source_opts["wmio_project"]]
+    elif source == "oracle_soa":
+        src_dir = source_opts.get("oracle_soa_source_dir", "")
+        if src_dir:
+            cmd += ["--source-dir", src_dir]
+        # composite filter is passed via env var read by the analyzer
+        filt = source_opts.get("oracle_soa_filter", "")
+        if filt:
+            source_env["ORACLE_SOA_COMPOSITE_FILTER"] = filt
+    elif source == "oracle_oic":
+        src_dir = source_opts.get("oracle_oic_source_dir", "")
+        if src_dir:
+            cmd += ["--source-dir", src_dir]
+        filt = source_opts.get("oracle_oic_filter", "")
+        if filt:
+            source_env["ORACLE_OIC_FILTER"] = filt
 
     if project:
         cmd += ["--project", project]
@@ -260,6 +317,16 @@ def main():
             errors.append("Boomi source requires a folder name.")
         if source == "mulesoft" and not src_env.get("_MULESOFT_SOURCE_DIR"):
             errors.append("MuleSoft source requires a project directory path.")
+        if source == "oracle_soa":
+            has_live = src_env.get("ORACLE_SOA_HOST", "").strip()
+            has_local = src_opts.get("oracle_soa_source_dir", "").strip()
+            if not has_live and not has_local:
+                errors.append("Oracle SOA source requires either credentials (live pull) or a local SAR directory.")
+        if source == "oracle_oic":
+            has_live = src_env.get("ORACLE_OIC_HOST", "").strip()
+            has_local = src_opts.get("oracle_oic_source_dir", "").strip()
+            if not has_live and not has_local:
+                errors.append("Oracle OIC source requires either credentials (live pull) or a local .iar directory.")
 
         if errors:
             for e in errors:
