@@ -258,10 +258,28 @@ def stream_subprocess(cmd: list[str], env: dict, output_queue: queue.Queue):
 
 # ─── Main UI ───────────────────────────────────────────────────────────────────
 
+LOGO_PATH = AGENT_DIR / "assets" / "techstone_logo.png"
+
+
 def main():
-    st.set_page_config(page_title="Migration Agent", page_icon="🔄", layout="wide")
-    st.title("Integration Migration Agent")
-    st.caption("Migrate integration flows between any supported platforms.")
+    st.set_page_config(
+        page_title="Techstone Migration Agent",
+        page_icon=str(LOGO_PATH) if LOGO_PATH.exists() else "🔄",
+        layout="wide",
+    )
+
+    # Logo + title header
+    if LOGO_PATH.exists():
+        st.logo(str(LOGO_PATH))
+        col_logo, col_title = st.columns([1, 6])
+        with col_logo:
+            st.image(str(LOGO_PATH), width=120)
+        with col_title:
+            st.title("Migration Agent")
+            st.caption("Migrate integration flows between any supported platforms.")
+    else:
+        st.title("Techstone Migration Agent")
+        st.caption("Migrate integration flows between any supported platforms.")
 
     # ── Source / Target columns ──────────────────────────────────────────────
     col_src, col_tgt = st.columns(2)
